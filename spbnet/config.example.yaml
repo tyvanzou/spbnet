@@ -1,0 +1,5 @@
+ckpt: './ckpt/spbnet.18w.ckpt'
+data_dir: './sample'
+id_prop: './sample/benchmark.csv'
+task: 'CO2-298-2.5'
+log_dir: './logs/hmof'

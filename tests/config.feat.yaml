@@ -1,0 +1,15 @@
+ckpt: './ckpt/spbnet.180k.ckpt'
+data_dir: './sample/spbnet'
+id_prop: './sample/benchmark.csv'
+device: [1]
+task: 'CO2-298-2.5'
+log_dir: './logs/hmof'
+save_dir: './feats/hmof'
+feats: [
+    # 'potential',
+    # 'structure',
+    'agc_pred',
+    'agc_label',
+    # 'feat',
+    # 'self_attn',
+  ]
