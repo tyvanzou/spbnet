@@ -5082,7 +5082,7 @@ As shown in the paper, features are shown to be able to capture short-range inte
 
 ## Architecture
 
-![architecture](/docs/img/architecture.png)
+![architecture](/spbnet/img/architecture.png)
 
 The overall architecture of SpbNet contains **Structure Encoder** and **Potential Decoder**. SpbNet encoder structure through graph neural network ([CGCNN](https://pubmed.ncbi.nlm.nih.gov/29694125/)), and decode potential energy through [Cross-Attention](https://arxiv.org/pdf/1706.03762.pdf) mechanism.
 
@@ -5398,5 +5398,5 @@ SpbNet will make an \`attn\` directory under your current directory, with the \`
 
 Now open the \`mof1.html\`. You should see \`3dmol\` like the following.
 
-![Cooperative](/docs/img/cooperative.png)
+![Cooperative](/spbnet/img/cooperative.png)
 `;function kVt(){return K.jsx(WIe,{markdown:IVt})}function DVt(){return K.jsx(DHe,{children:K.jsx(FVe,{Index:K.jsx(LHe,{}),Content:K.jsxs(RHe,{children:[K.jsx(Qv,{path:"/",Component:K6}),K.jsx(Qv,{path:"/visualization",Component:I_t}),K.jsx(Qv,{path:"/introduction",Component:K6}),K.jsx(Qv,{path:"/doc",Component:kVt}),K.jsx(Qv,{path:"*",Component:K6})]})})})}const LVt={brand:{900:"#1a365d",800:"#153e75",700:"#2a69ac"}},MVt=v7e({colors:LVt});Q6.createRoot(document.getElementById("root")).render(K.jsx(G$e,{theme:MVt,children:K.jsx(DVt,{})}));
