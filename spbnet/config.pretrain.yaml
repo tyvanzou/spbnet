@@ -1,0 +1,66 @@
+epoch: 200
+cuda: [0, 1, 2, 3]
+# cuda: [6]
+batch_size: 32
+accelerator: 'gpu'
+strategy: 'ddp_find_unused_parameters_true'
+accumulate_grad_batches: 8
+precision: '32'
+log_every_n_steps: 10
+log_dir: './lightning_logs'
+
+topo_num: _
+
+data_dir: './data'
+id_prop: './data/vftopo.csv'
+
+# model:
+# categors
+structure: True
+lj: True
+coulomb: False
+correction: True
+
+# graps
+atom_fea_len: 64
+nbr_fea_len: 64
+max_graph_len: 512
+max_nbr_atoms: 12
+
+# potential
+img_size:
+  lj: 30
+  coulomb: 20
+patch_size:
+  lj: 3
+  coulomb: 2
+in_chans: 1
+max_grid_len: -1
+draw_false_grid: False
+visualize: False
+
+# others
+conv_layers: 3
+nlayers:
+  structure: 6
+  potential: 6
+
+# transformer
+hid_dim: 768
+nhead: 12
+dropout: 0.15
+
+# optimizer:
+lr: 0.0001
+decay_power: 'cosine'
+weight_decay: 0.01
+warmup_steps: 0.1
+max_steps: -1
+# original
+optim_type: 'adamw'
+end_lr: 0
+lr_mult: 1
+
+vfp: 1
+tc: 1
+agc: 1

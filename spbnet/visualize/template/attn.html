@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://3dmol.org/build/3Dmol.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/nicolaspanel/numjs@0.15.1/dist/numjs.min.js"></script>
+    <title>3Dmol.js Example</title>
+  </head>
+  <body>
+    <div
+      id="viewer"
+      style="width: 400px; height: 400px; position: relative"
+    ></div>
+    <script>
+      var xyzData = `__xyzData__`
+
+      let attn_weight = __attn__
+
+      var ele = document.querySelector('#viewer')
+      var viewer = $3Dmol.createViewer(ele)
+      // console.log(filter_attn_weight)
+
+      viewer.addModel(xyzData, 'xyz')
+
+      function findPercentile(arr, percentile) {
+        let carr = [...arr]
+        carr.sort()
+        let len = arr.length
+        plen = parseInt((percentile * len) / 100)
+        return carr[plen]
+      }
+      let threshold = findPercentile(attn_weight, 70)
+      let mean = findPercentile(attn_weight, 50)
+
+      attn_weight = attn_weight.map((val) => (val > threshold ? val : 0))
+
+      attn_weight = nj.array(attn_weight)
+      attn_weight = attn_weight.divide(mean)
+      attn_weight = attn_weight.pow(1)
+
+      var data = viewer.getModel().selectedAtoms({})
+
+      viewer.setStyle({}, { stick: { radius: 0.15 }, sphere: { radius: 0.1 } })
+      for (let i = 0; i < attn_weight.size; i++) {
+        let attn = attn_weight.get(i)
+        if (data[i].atom === 'H') continue
+        data[i].style.sphere.radius = 0.25 * attn
+      }
+
+      viewer.zoomTo()
+      viewer.render()
+    </script>
+  </body>
+</html>

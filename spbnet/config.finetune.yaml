@@ -1,0 +1,65 @@
+# configable
+epochs: 60
+ckpt: './ckpt/spbnet.18w.ckpt'
+
+# hmof
+# data_dir: './data/benchmark/hmof/spbnet'
+# id_prop: './data/benchmark/hmof/benchmark.csv'
+# task: 'CO2-298-2.5'
+# log_dir: './lightning_logs/ft18w/hmof'
+device: [0]
+
+# stable
+batch_size: 8
+accelerator: 'gpu'
+strategy: 'ddp_find_unused_parameters_true'
+accumulate_grad_batches: 4
+precision: '32'
+log_every_n_steps: 10
+
+# MODEL
+# category
+structure: True
+lj: True
+coulomb: False
+correction: True
+decoder_only: False
+
+# graph
+atom_fea_len: 64
+nbr_fea_len: 64
+max_graph_len: 512
+max_nbr_atoms: 12
+
+# potential
+img_size:
+  lj: 30
+  coulomb: 20
+patch_size:
+  lj: 3
+  coulomb: 2
+in_chans: 1
+max_grid_len: -1
+draw_false_grid: False
+visualize: False
+
+# others
+conv_layers: 3
+nlayers:
+  structure: 6
+  potential: 6
+
+# transformer
+hid_dim: 768
+nhead: 12
+dropout: 0.15
+
+# OPTIMIZER
+optim_type: 'adamw'
+lr: 0.0001
+end_lr: 0
+lr_mult: 1
+weight_decay: 0.01
+decay_power: 1
+warmup_steps: 0.05
+max_steps: -1

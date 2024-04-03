@@ -1,0 +1,105 @@
+# configable
+epochs: 60
+# ckpt: "./ckpt/spbnet.1m.ckpt"
+ckpt: './ckpt/spbnet.180k.ckpt'
+
+feats:
+  [
+    # 'potential',
+    # 'structure',
+    # 'agc_pred',
+    # 'agc_label',
+    # 'feat',
+    'self_attn',
+  ]
+
+# # cof
+# data_dir: "./data/cof"
+# id_prop: "./data/cof/benchmark.csv"
+# tasks: ["highbar"]
+# log_dir: "./logs/cof"
+# devices: [[0]]
+
+# # zeolite
+# data_dir: './data/zeolite'
+# id_prop: './data/zeolite/benchmark.csv'
+# tasks: ['heat_of_adsorption']
+# log_dir: './logs/zeolite'
+# devices: [[0]]
+
+# # coremof
+# data_dir: './data/coremof'
+# id_prop: './data/coremof/benchmark.csv'
+# tasks: ['Ar-87-1']
+# log_dir: './logs/coremof'
+# devices: [[0]]
+
+# # ppn
+# data_dir: './data/ppn'
+# id_prop: './data/ppn/benchmark.csv'
+# tasks: ['1bar']
+# log_dir: './logs/ppn'
+# devices: [[0]]
+
+# pretrain
+# data_dir: './data/pretrain'
+# id_prop: './data/pretrain/benchmark.csv'
+# task: ['voidfraction']
+# log_dir: './logs/pretrain'
+# device: [0]
+
+# stable
+batch_size: 8
+accelerator: 'gpu'
+strategy: 'ddp'
+accumulate_grad_batches: 8
+precision: '32'
+log_every_n_steps: 10
+topo_num: 1094
+
+# model:
+# category
+structure: True
+lj: True
+coulomb: False
+correction: True
+decoder_only: False
+
+# graph
+atom_fea_len: 64
+nbr_fea_len: 64
+max_graph_len: 512
+max_nbr_atoms: 12
+
+# potential
+img_size:
+  lj: 30
+  coulomb: 20
+patch_size:
+  lj: 3
+  coulomb: 2
+in_chans: 1
+max_grid_len: -1
+draw_false_grid: False
+visualize: True
+
+# others
+conv_layers: 3
+nlayers:
+  structure: 6
+  potential: 6
+
+# transformer
+hid_dim: 768
+nhead: 12
+dropout: 0.15
+
+# optimizer:
+optim_type: 'adamw'
+lr: 0.0001
+end_lr: 0
+lr_mult: 1
+weight_decay: 0.01
+decay_power: 1
+warmup_steps: 0.05
+max_steps: -1
