@@ -2,3 +2,6 @@
 /dist
 /spbnet.egg-info
 /.pytest_cache
+/tests/data/spbnet
+/tests/ckpt
+/tests/logs/**/checkpoints/

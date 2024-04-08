@@ -1,0 +1,51 @@
+config:
+  accelerator: gpu
+  accumulate_grad_batches: 4
+  atom_fea_len: 64
+  batch_size: 4
+  ckpt: ./ckpt/spbnet.180k.ckpt
+  conv_layers: 3
+  correction: true
+  coulomb: false
+  data_dir: ./data/spbnet
+  decay_power: 1
+  decoder_only: false
+  device:
+  - 0
+  draw_false_grid: false
+  dropout: 0.15
+  end_lr: 0
+  epochs: 30
+  hid_dim: 768
+  id_prop: ./data/benchmark.csv
+  img_size:
+    coulomb: 20
+    lj: 30
+  in_chans: 1
+  lj: true
+  log_dir: ./logs/hmof
+  log_every_n_steps: 10
+  lr: 0.0001
+  lr_mult: 1
+  max_graph_len: 512
+  max_grid_len: -1
+  max_nbr_atoms: 12
+  max_steps: -1
+  mean: 5.325830404166666
+  nbr_fea_len: 64
+  nhead: 12
+  nlayers:
+    potential: 6
+    structure: 6
+  optim_type: adamw
+  patch_size:
+    coulomb: 2
+    lj: 3
+  precision: '32'
+  std: 2.6947958848152913
+  strategy: ddp_find_unused_parameters_true
+  structure: true
+  task: CO2-298-2.5
+  visualize: false
+  warmup_steps: 0.05
+  weight_decay: 0.01
