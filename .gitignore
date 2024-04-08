@@ -1,0 +1,4 @@
+/build
+/dist
+/spbnet.egg-info
+/.pytest_cache

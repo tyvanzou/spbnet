@@ -2,6 +2,57 @@
 
 SpbNet is the official implementation of the paper.
 
+## The demo to fine-tune SpbNet
+
+A example to finetune SpbNet has been uploaded to [Figshare](https://figshare.com/projects/spbnet/200692). To run this demo, download the `demo.tar.gz` file and extract it. The directory should be look like
+
+```txt
+Root
+├── demo
+|  ├── ckpt
+|  ├── config.example.yaml
+|  ├── data
+|  |  ├── benchmark.csv
+|  |  ├── benchmark.filter.csv
+|  |  ├── benchmark.test.csv
+|  |  ├── benchmark.train.csv
+|  |  ├── benchmark.validate.csv
+|  |  ├── cif
+|  |  └── spbnet
+|  ├── logs
+|  |  └── hmof
+|  └── main.py
+└── demo.tar.gz
+```
+
+To finetune, you should first download the pretrained weight from [Figshare](https://figshare.com/projects/spbnet/200692). Put the weight to `demo/ckpt` directory. Then you can install spbnet and finetune spbnet.
+
+```sh
+cd demo
+# optional: conda create -n spbtest python=3.10
+# optional: conda activate spbtest
+pip install spbnet
+python ./main.py
+```
+
+The log will be put in the `logs` directory. We have provided the expected result in the `logs/hmof/CO2-298-2.5/version_0` direcotry.
+
+After fine-tuned for `30` epochs, the result should look like:
+
+```sh
+---------------------------------------
+	Test metric		DataLoader 0
+---------------------------------------
+	test_mae		1.5358973344167073
+	test_mse		3.877110533444727
+	test_r2			0.3504098369900308
+---------------------------------------
+```
+
+The predicted result can be found in the log directory, which should look like `logs/hmof/CO2-298-2.5/version_0/test_result.csv`.
+
+## Prepare
+
 To finetune spbnet, we recommend to make a new directory.
 
 ```sh
@@ -31,7 +82,7 @@ pip install spbnet
 
 ### Download weight
 
-The weight has been uploaded in [Figshare](https://figshare.com).
+The weight has been uploaded in [Figshare](https://figshare.com/projects/spbnet/200692).
 
 Save the weight to your directory, such as `./ckpt/spbnet.180k.ckpt`
 

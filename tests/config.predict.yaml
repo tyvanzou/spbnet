@@ -1,0 +1,13 @@
+epochs: 30
+batch_size: 8
+accumulate_grad_batches: 4
+device: [0]
+strategy: 'ddp_find_unused_parameters_true' # for pytorch version
+
+ckpt: './ckpt/spbnet.18w.ckpt'
+data_dir: './data'
+id_prop: './data/benchmark.test.csv'
+log_dir: './logs'
+
+mean: 5.325830404166666
+std: 2.6947958848152913
