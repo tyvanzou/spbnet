@@ -4,7 +4,7 @@ accumulate_grad_batches: 4
 device: [0]
 strategy: 'ddp_find_unused_parameters_true' # for pytorch version
 
-ckpt: './logs/hmof/CO2-298-2.5/version_0/checkpoints/last.ckpt'
+ckpt: './logs/CO2-298-2.5/version_0/checkpoints/last.ckpt'
 data_dir: './data/spbnet'
 id_prop: './data/benchmark.test.csv'
 log_dir: './predict'

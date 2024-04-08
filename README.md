@@ -32,10 +32,12 @@ cd demo
 # optional: conda create -n spbtest python=3.10
 # optional: conda activate spbtest
 pip install spbnet
-python ./main.py
+python ./finetune.py
+python ./predict.py
+python ./feat.py
 ```
 
-The log will be put in the `logs` directory. We have provided the expected result in the `logs/hmof/CO2-298-2.5/version_0` direcotry.
+The log will be put in the `logs` directory. We have provided the expected result in the `logs/CO2-298-2.5/version_0` direcotry.
 
 After fine-tuned for `30` epochs, the result should look like:
 

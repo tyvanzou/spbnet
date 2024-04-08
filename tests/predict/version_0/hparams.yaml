@@ -3,7 +3,7 @@ config:
   accumulate_grad_batches: 4
   atom_fea_len: 64
   batch_size: 8
-  ckpt: ./logs/hmof/CO2-298-2.5/version_0/checkpoints/last.ckpt
+  ckpt: ./logs/CO2-298-2.5/version_0/checkpoints/last.ckpt
   conv_layers: 3
   correction: true
   coulomb: false

@@ -26,7 +26,7 @@ config:
     lj: 30
   in_chans: 1
   lj: true
-  log_dir: ./featlogs/hmof
+  log_dir: ./featlogs
   log_every_n_steps: 10
   lr: 0.0001
   lr_mult: 1
@@ -45,7 +45,7 @@ config:
     coulomb: 2
     lj: 3
   precision: '32'
-  save_dir: ./feats/hmof
+  save_dir: ./feats
   std: 2.6531772839768384
   strategy: ddp
   structure: true

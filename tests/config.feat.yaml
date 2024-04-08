@@ -3,8 +3,8 @@ data_dir: './data/spbnet'
 id_prop: './data/benchmark.csv'
 device: [0]
 task: 'CO2-298-2.5'
-log_dir: './featlogs/hmof'
-save_dir: './feats/hmof'
+log_dir: './featlogs'
+save_dir: './feats'
 feats: [
     # 'potential',
     # 'structure',

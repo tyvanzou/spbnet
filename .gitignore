@@ -5,3 +5,5 @@
 /tests/data/spbnet
 /tests/ckpt
 /tests/logs/**/checkpoints/
+/demo
+/*.tar.gz

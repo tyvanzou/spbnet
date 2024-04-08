@@ -7,6 +7,6 @@ strategy: 'ddp_find_unused_parameters_true' # for pytorch version
 ckpt: './ckpt/spbnet.180k.ckpt'
 data_dir: './data/spbnet'
 id_prop: './data/benchmark.csv'
-log_dir: './logs/hmof'
+log_dir: './logs'
 
 task: 'CO2-298-2.5'
