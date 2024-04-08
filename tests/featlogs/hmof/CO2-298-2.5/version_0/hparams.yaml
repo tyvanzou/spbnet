@@ -1,6 +1,6 @@
 config:
   accelerator: gpu
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 8
   atom_fea_len: 64
   batch_size: 8
   ckpt: ./ckpt/spbnet.180k.ckpt
@@ -15,7 +15,10 @@ config:
   draw_false_grid: false
   dropout: 0.15
   end_lr: 0
-  epochs: 30
+  epochs: 60
+  feats:
+  - agc_pred
+  - agc_label
   hid_dim: 768
   id_prop: ./data/benchmark.csv
   img_size:
@@ -23,7 +26,7 @@ config:
     lj: 30
   in_chans: 1
   lj: true
-  log_dir: ./logs/hmof
+  log_dir: ./featlogs/hmof
   log_every_n_steps: 10
   lr: 0.0001
   lr_mult: 1
@@ -31,7 +34,7 @@ config:
   max_grid_len: -1
   max_nbr_atoms: 12
   max_steps: -1
-  mean: 5.325830404166666
+  mean: 5.24871759
   nbr_fea_len: 64
   nhead: 12
   nlayers:
@@ -42,10 +45,12 @@ config:
     coulomb: 2
     lj: 3
   precision: '32'
-  std: 2.6947958848152913
-  strategy: ddp_find_unused_parameters_true
+  save_dir: ./feats/hmof
+  std: 2.6531772839768384
+  strategy: ddp
   structure: true
   task: CO2-298-2.5
-  visualize: false
+  topo_num: 1094
+  visualize: true
   warmup_steps: 0.05
   weight_decay: 0.01

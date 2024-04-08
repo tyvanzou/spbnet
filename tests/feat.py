@@ -1,6 +1,6 @@
-from spbnet.visualize.feat import test
+from spbnet.visualize.feat import feat
 import os
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-test("./config.feat.yaml")
+feat("./config.feat.yaml")

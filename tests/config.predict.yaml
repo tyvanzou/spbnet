@@ -4,10 +4,10 @@ accumulate_grad_batches: 4
 device: [0]
 strategy: 'ddp_find_unused_parameters_true' # for pytorch version
 
-ckpt: './ckpt/spbnet.18w.ckpt'
-data_dir: './data'
+ckpt: './logs/hmof/CO2-298-2.5/version_0/checkpoints/last.ckpt'
+data_dir: './data/spbnet'
 id_prop: './data/benchmark.test.csv'
-log_dir: './logs'
+log_dir: './predict'
 
 mean: 5.325830404166666
 std: 2.6947958848152913

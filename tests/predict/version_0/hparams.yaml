@@ -2,8 +2,8 @@ config:
   accelerator: gpu
   accumulate_grad_batches: 4
   atom_fea_len: 64
-  batch_size: 4
-  ckpt: ./ckpt/spbnet.180k.ckpt
+  batch_size: 8
+  ckpt: ./logs/hmof/CO2-298-2.5/version_0/checkpoints/last.ckpt
   conv_layers: 3
   correction: true
   coulomb: false
@@ -17,13 +17,13 @@ config:
   end_lr: 0
   epochs: 30
   hid_dim: 768
-  id_prop: ./data/benchmark.csv
+  id_prop: ./data/benchmark.test.csv
   img_size:
     coulomb: 20
     lj: 30
   in_chans: 1
   lj: true
-  log_dir: ./logs/hmof
+  log_dir: ./predict
   log_every_n_steps: 10
   lr: 0.0001
   lr_mult: 1
@@ -45,7 +45,6 @@ config:
   std: 2.6947958848152913
   strategy: ddp_find_unused_parameters_true
   structure: true
-  task: CO2-298-2.5
   visualize: false
   warmup_steps: 0.05
   weight_decay: 0.01
