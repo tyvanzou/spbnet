@@ -75,9 +75,6 @@ class CrossFormerTrainer(pl.LightningModule):
         return super().on_test_epoch_start()
 
     def test_step(self, batch, batch_idx) -> torch.Tensor:
-        # [batch_size, max_token_len]
-        target = batch["target"]
-
         feat = self.model(batch)
         cls_feat = feat["cls_feat"]
         cls_feat = self.pooler(cls_feat)
@@ -85,22 +82,14 @@ class CrossFormerTrainer(pl.LightningModule):
         pred = reg * self.std + self.mean
 
         cifid = batch["cifid"]
-        for cifid_i, target_i, pred_i in zip(cifid, target, pred):
-            self.test_items.append([cifid_i, target_i.item(), pred_i.item()])
+        for cifid_i, pred_i in zip(cifid, pred):
+            self.test_items.append([cifid_i, pred_i.item()])
 
     def on_test_epoch_end(self) -> None:
         self.test_df = pd.DataFrame(
-            self.test_items, columns=["cifid", "target", "predict"]
+            self.test_items, columns=["cifid", "predict"]
         )
         pred = torch.tensor(self.test_df["predict"])
-        target = torch.tensor(self.test_df["target"])
-        mae = torch.mean(torch.abs((pred - target)))
-        mse = torch.mean((pred - target) ** 2)
-        r2 = r2_score(target, pred)
-        self.log("test_mae", mae)
-        self.log("test_mse", mse)
-        self.log("test_r2", r2)
-        # print(f"TEST MAE: {mae.item()}, R2: {r2.item()}")
         self.test_df.to_csv(
             (Path(self.logger.log_dir) / "test_result.csv"),
             index=False,
@@ -172,6 +161,7 @@ def predict(config_path: str):
     model = CrossFormerTrainer(config)
 
     trainer.test(
+        model=model,
         dataloaders=DataLoader(
             test_dataset,
             batch_size=config["batch_size"],

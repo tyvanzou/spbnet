@@ -178,8 +178,8 @@ class CrossFormerTrainer(pl.LightningModule):
                 self.self_attns.append(self_attn)  # [5, 1000, 1000]
 
     def on_test_epoch_end(self) -> None:
-        save_dir = Path(self.config["save_dir"], parents=True)
-        save_dir.mkdir(exist_ok=True)
+        save_dir = Path(self.config["save_dir"])
+        save_dir.mkdir(exist_ok=True, parents=True)
 
         for feat_name in self.config["feats"]:
             if feat_name == "potential":

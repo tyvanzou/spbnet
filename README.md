@@ -293,6 +293,48 @@ Your directory should look like:
     main.py
 ```
 
+## Predict
+
+After finetune, the checkpoints and hyperparamters should be found in directory like `./tests/logs/hmof/CO2-298-2.5/version_0`. Due to that SpbNet will automatically normalize the training data during training to increase training stability. SpbNet uses mean-variance normalization. The mean and std used can be found in `.../version_0/hparams.yaml`.
+
+Based on the finetuned checkpoint and mean, std. You can predict the target property. First provide the `data_dir` and the `id_prop` csv file. The `id_prop` file should looks like
+
+```txt
+cifid
+mof1
+mof2
+...
+```
+
+Then prepare a configuration `yaml` file like
+
+```yaml
+ckpt: './logs/hmof/CO2-298-2.5/version_0/checkpoints/last.ckpt'
+data_dir: './data/spbnet'
+id_prop: './data/benchmark.test.csv' # the id_prop file
+log_dir: './predict'
+
+mean: 5.325830404166666
+std: 2.6947958848152913
+```
+
+Then predict
+
+```python
+import spbnet
+
+spbnet.predict("./config.predict.yaml")
+```
+
+The `test_results.csv` will be saved in directory like `predict/version_0`. It shoud look like
+
+```csv
+cifid,predict
+hMOF-4000155,12.504342079162598
+hMOF-5024342,2.8985860347747803
+hMOF-25731,4.6314473152160645
+```
+
 ## Visualize
 
 SpbNet provide visualization of attention score and atom grid.

@@ -16,8 +16,7 @@ class Dataset(torch.utils.data.Dataset):
         draw_false_grid=False,
     ):
         super().__init__()
-        filter_df = df.dropna(subset=[task])
-        self.df = filter_df
+        self.df = df
         self.data_dir = data_dir
         self.draw_false_grid = draw_false_grid
         self.nbr_fea_len = nbr_fea_len
