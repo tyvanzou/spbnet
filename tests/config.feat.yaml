@@ -1,3 +1,4 @@
+batch_size: 1
 ckpt: './ckpt/spbnet.180k.ckpt'
 data_dir: './data/spbnet'
 id_prop: './data/benchmark.csv'
@@ -13,3 +14,7 @@ feats: [
     # 'feat',
     # 'self_attn',
   ]
+
+# For Pytorch Lightning Version
+strategy: 'ddp_find_unused_parameters_true'
+precision: '16-mixed'

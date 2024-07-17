@@ -12,3 +12,4 @@ task: 'CO2-298-2.5'
 
 # for Pytorch Lightning Version: "ddp" for pl < 2.0.0 and  "ddp_find_unused_parameters_true" for pl >= 2.0.0
 strategy: 'ddp_find_unused_parameters_true' # for pytorch version
+precision: '32'
