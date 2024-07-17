@@ -3,7 +3,7 @@ config:
   accumulate_grad_batches: 4
   atom_fea_len: 64
   batch_size: 8
-  ckpt: ./logs/CO2-298-2.5/version_0/checkpoints/last.ckpt
+  ckpt: ./logs/CO2-298-2.5/version_0/checkpoints/epoch=26-step=1620.ckpt
   conv_layers: 3
   correction: true
   coulomb: false
@@ -15,7 +15,7 @@ config:
   draw_false_grid: false
   dropout: 0.15
   end_lr: 0
-  epochs: 30
+  epochs: 60
   hid_dim: 768
   id_prop: ./data/benchmark.test.csv
   img_size:
@@ -41,9 +41,9 @@ config:
   patch_size:
     coulomb: 2
     lj: 3
-  precision: '32'
+  precision: 16-mixed
   std: 2.6947958848152913
-  strategy: ddp_find_unused_parameters_true
+  strategy: ddp
   structure: true
   visualize: false
   warmup_steps: 0.05

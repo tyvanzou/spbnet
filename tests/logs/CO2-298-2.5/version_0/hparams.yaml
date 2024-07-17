@@ -2,7 +2,7 @@ config:
   accelerator: gpu
   accumulate_grad_batches: 4
   atom_fea_len: 64
-  batch_size: 8
+  batch_size: 1
   ckpt: ./ckpt/spbnet.180k.ckpt
   conv_layers: 3
   correction: true
@@ -41,7 +41,7 @@ config:
   patch_size:
     coulomb: 2
     lj: 3
-  precision: '32'
+  precision: 16-mixed
   std: 2.6947958848152913
   strategy: ddp_find_unused_parameters_true
   structure: true

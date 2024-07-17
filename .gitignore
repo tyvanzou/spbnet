@@ -7,3 +7,4 @@
 /tests/logs/**/checkpoints/
 /demo
 /*.tar.gz
+.DS_Store

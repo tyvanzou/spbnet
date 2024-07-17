@@ -114,12 +114,12 @@ def predict(config_path: str):
     if user_config.get("id_prop") is None:
         err(f"Please specify label data `id_prop`")
         return
-    if user_config.get("mean") is None:
-        err(f"Please specify label data `mean`")
-        return
-    if user_config.get("std") is None:
-        err(f"Please specify label data `std`")
-        return
+    # if user_config.get("mean") is None:
+    #     err(f"Please specify label data `mean`")
+    #     return
+    # if user_config.get("std") is None:
+    #     err(f"Please specify label data `std`")
+    #     return
 
     # base_config.update(user_config)
     config = {**base_config, **user_config}
@@ -139,10 +139,14 @@ def predict(config_path: str):
     # split train & val
     test_df = pd.read_csv(id_prop_path.absolute(), dtype={"cifid": str})
     test_dataset = Dataset(test_df, data_dir, config["nbr_fea_len"])
+    
+    ckpt = torch.load(config['ckpt'])
+    config["mean"] = ckpt['hyper_parameters']['config']['mean']
+    config["std"] = ckpt['hyper_parameters']['config']['std']
 
-    # mean & std
-    mean = config["mean"]
-    std = config["std"]
+    # # mean & std
+    # mean = config["mean"]
+    # std = config["std"]
 
     # train
     logger = TensorBoardLogger(save_dir=(log_dir).absolute(), name="")

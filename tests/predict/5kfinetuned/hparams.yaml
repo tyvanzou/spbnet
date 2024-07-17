@@ -1,9 +1,9 @@
 config:
   accelerator: gpu
-  accumulate_grad_batches: 8
+  accumulate_grad_batches: 4
   atom_fea_len: 64
   batch_size: 8
-  ckpt: ./ckpt/spbnet.180k.ckpt
+  ckpt: ./ckpt/CO2.5kFinetuned.ckpt
   conv_layers: 3
   correction: true
   coulomb: false
@@ -16,17 +16,14 @@ config:
   dropout: 0.15
   end_lr: 0
   epochs: 60
-  feats:
-  - agc_pred
-  - agc_label
   hid_dim: 768
-  id_prop: ./data/benchmark.csv
+  id_prop: ./data/benchmark.test.csv
   img_size:
     coulomb: 20
     lj: 30
   in_chans: 1
   lj: true
-  log_dir: ./featlogs
+  log_dir: ./predict
   log_every_n_steps: 10
   lr: 0.0001
   lr_mult: 1
@@ -34,7 +31,23 @@ config:
   max_grid_len: -1
   max_nbr_atoms: 12
   max_steps: -1
-  mean: 5.24871759
+  mean: !!python/object/apply:numpy.core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    NgckZzKMFEA=
   nbr_fea_len: 64
   nhead: 12
   nlayers:
@@ -44,13 +57,13 @@ config:
   patch_size:
     coulomb: 2
     lj: 3
-  precision: '32'
-  save_dir: ./feats
-  std: 2.6531772839768384
+  precision: 16-mixed
+  std: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    CjO8IiUPBUA=
   strategy: ddp
   structure: true
-  task: CO2-298-2.5
-  topo_num: 1094
-  visualize: true
+  visualize: false
   warmup_steps: 0.05
   weight_decay: 0.01

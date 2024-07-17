@@ -196,7 +196,7 @@ def finetune(config_path: str):
         user_config: dict = yaml.load(f, Loader=yaml.FullLoader)
 
     if user_config.get("data_dir") is None:
-        err(f"Please specify modal directory `data_dir`!")
+        err(f"Please specify modal directory `data_dir`")
         return
     if user_config.get("id_prop") is None:
         err(f"Please specify label data `id_prop`")

@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append("..")  # 相对路径或绝对路径
+
 from spbnet.visualize.feat import feat
 import os
 
