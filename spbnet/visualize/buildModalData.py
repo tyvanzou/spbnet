@@ -1,4 +1,3 @@
-from .prepare_data import make_prepared_data
 from pathlib import Path
 import math
 import numpy as np
@@ -6,7 +5,10 @@ from ase.build import make_supercell
 from ase.io import read
 import shutil
 import argparse
-from spbnet.utils.echo import err, title, start, end
+import click
+
+from .prepare_data import make_prepared_data
+from ..utils.echo import err, title, start, end
 
 
 GRID = 30
@@ -140,3 +142,12 @@ def buildModalData(cif_path: Path, tgt_dir: Path):
     get_atoms(cif_path, tgt_dir)
     start("End to get atoms")
     title("BUILD MODAL DATA END")
+
+
+@click.command()
+@click.option(
+    "--cif-path", "-C", type=click.Path(exists=True, dir_okay=False, type=Path)
+)
+@click.option("--target-dir", "-C", type=click.Path(file_okay=False, type=Path))
+def buildModalDataCli(cif_path, target_dir):
+    buildModalData(cif_path, target_dir)

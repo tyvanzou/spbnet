@@ -1,5 +1,6 @@
-from spbnet.data.buildData import buildData
 import argparse
+
+from ..datamodule.buildData import buildData
 
 
 class CLICommand:

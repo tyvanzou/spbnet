@@ -10,6 +10,6 @@ class CLICommand:
 
     @staticmethod
     def run(args):
-        from spbnet.data.install_griday import make_griday
+        from ..datamodule.install_griday import make_griday
 
         make_griday()

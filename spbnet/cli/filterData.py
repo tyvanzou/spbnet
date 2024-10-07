@@ -1,5 +1,6 @@
-from spbnet.data.filterData import filterData
 import argparse
+
+from ..datamodule.filterData import filterData
 
 
 class CLICommand:

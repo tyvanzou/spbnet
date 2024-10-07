@@ -1,0 +1,209 @@
+id_prop: benchmark
+
+# # hmof
+# root_dataset : "../../data/benchmark/hmof/moftransformer"
+# downstreams : [
+#   'CO2-298-2.5',
+#   # "CO2-298-0.1",
+#   'CH4-298-2.5',
+#   # "CH4-298-35",
+#   'N2-298-0.9',
+#   'H2-77-2',
+#   'Kr-273-10',
+#   'Xe-273-10',
+# ]
+# means : [5.13691102178, 1.8212411685680003, 0.29087556650400004, 17.71891815254, 3.70386716372, 4.2117898187864]
+# stds : [2.632395049446477, 1.05517869156444, 0.1781808296588763, 8.182384109544435, 1.818787709352803, 2.278545377491175]
+# devices : [0, 1, 2, 3, 3, 2]
+# save_dir : f"../../lightning_logs/{ckpt}/hmof"
+
+# # hmofheat
+# root_dataset : "../../data/benchmark/hmofheat/moftransformer"
+# downstreams : ['CO2-298K-2.5bar', 'H2-77K-2bar', 'CH4-298K-2.5bar', 'N2-298K-0.9bar']
+# means : [23.000212919642856, 5.0909288535714285, 15.602511575, 12.630718869642857]
+# stds : [6.804329353997073, 1.4711810345707992, 4.865980365617129, 4.116825879348438]
+# devices : [1, 2, 1, 2]
+# save_dir : f"../../lightning_logs/{ckpt}/hmofheat"
+
+# # coremof
+# root_dataset : "../../data/benchmark/coremof/moftransformer"
+# downstreams : ['N2-77-100000', 'Ar-87-1']
+# means : [223.64441821109915, 103.00927341491585]
+# stds : [227.8184165785443, 74.00656022331813]
+# devices : [0, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/coremof"
+
+# # zeolite
+# root_dataset : "../../data/benchmark/zeolite/moftransformer"
+# downstreams : ['heat_of_adsorption', 'unitless_KH']
+# means : [19.052040440559388, 19.67471613430977]
+# stds : [3.131226522080793, 11.857143696566638]
+# devices : [2, 3]
+# save_dir : f"../../lightning_logs/{ckpt}/zeolite"
+
+# # ppn
+# root_dataset : "../../data/benchmark/ppn/moftransformer"
+# # downstreams : ['1bar', '65bar']
+# # means : [3.7573183416, 117.5977758872]
+# # stds : [4.9152537678567425, 31.212612296092093]
+# # devices : [2, 3]
+# downstreams : ['65bar']
+# means : [117.5977758872]
+# stds : [31.212612296092093]
+# devices : [0]
+# save_dir : f"../../lightning_logs/{ckpt}/ppn"
+
+# # cof
+# root_dataset : "../../data/benchmark/cof/moftransformer"
+# downstreams : ['highbar', 'logkh', 'lowbar', 'qst']
+# means : [158.79406380183875, -10.978623818761992, 23.521560135260458, -14.789164115492639]
+# stds : [37.7829320146258, 0.5559463573933592, 16.449729560904643, 4.530320399344209]
+# devices : [0, 1, 2, 3]
+# save_dir : f"../../lightning_logs/{ckpt}/cof"
+
+# # aromatic
+# root_dataset : "../../data/benchmark/aromatic/moftransformer"
+# downstreams : ['Np', 'Sp']
+# means : [1.4763135037974087, 1.8838352386113075]
+# stds : [1.2931085810126737, 14.671386418374567]
+# devices : [0, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/aromatic"
+
+# # ch4n2
+# root_dataset : "../../data/benchmark/ch4n2/moftransformer"
+# # downstreams : ["ch4n2ratio-0.1bar", "ch4n2ratio-1bar", "ch4n2ratio-10bar"]
+# # means : [4.129216398074763, 4.0301191812789385, 3.997919023077149]
+# # stds : [2.241308820447452, 1.6448831624959857, 1.572500425417175]
+# downstreams : ["KCH4", "KN2"]
+# means : [1.7746254853705226e-05, 3.807344271260596e-06]
+# stds : [2.2097089821017542e-05, 2.355516814581313e-06]
+# devices : [0, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/ch4n2"
+
+# # heat
+# root_dataset : "../../data/benchmark/heat/moftransformer"
+# downstreams : ['Cv_molar_250.00', 'Cv_gravimetric_250.00', 'Cv_molar_275.00', 'Cv_gravimetric_275.00', 'Cv_molar_300.00', 'Cv_gravimetric_300.00', 'Cv_molar_325.00', 'Cv_gravimetric_325.00', 'Cv_molar_350.00', 'Cv_gravimetric_350.00', 'Cv_molar_375.00', 'Cv_gravimetric_375.00', 'Cv_molar_400.00', 'Cv_gravimetric_400.00']
+# means : [9.85134211087041, 0.6858186119185267, 10.575025574950391, 0.7376123063486532, 11.267499833244011, 0.7873726838212637, 11.928074364506394, 0.8350021104990033, 12.555948170047985, 0.8804028256687148, 13.150598005146534, 0.9235044181784955, 13.711952086425088, 0.9642756121005764]
+# stds : [1.5648065176288988, 0.08879467689500495, 1.5872593917513782, 0.09862072324472651, 1.597449508625011, 0.10897465634997018, 1.5976036465785546, 0.11962345474631007, 1.5897598455184843, 0.13036635759397908, 1.5757058146228704, 0.14103948482087306, 1.5569513331525475, 0.151515967173963]
+# downstreams : downstreams[:4]
+# means : means[:4]
+# stds : stds[:4]
+# devices : [1, 1, 1, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/heat"
+
+# # krxe
+# root_dataset : "../../data/benchmark/krxe/moftransformer"
+# downstreams : ["Qst-CH4-298k-6bar","Qst-H2-77k-6bar","Qst-H2-130k-6bar","Qst-H2-200k-6bar","Qst-H2-243k-6bar","Select-Xe-Kr-1bar","Select-Xe-Kr-5bar"]
+# means : [10.871334555167454, 3.43626757139922, 3.7646391103349086, 4.134450073967536, 4.425909184302444, 3.862275799260325, 3.5733906731045817]
+# stds : [4.249101151756255, 1.2650934765136224, 1.4382869270118115, 1.4895327872987603, 1.472637320083309, 6.1784006604447175, 6.162467820031652]
+# devices : [0, 1, 1, 1, 1, 1, 1]
+# # downstreams : ["Qst-CH4-298k-6bar","Qst-H2-77k-6bar","Select-Xe-Kr-1bar","Select-Xe-Kr-5bar"]
+# # means : [10.871334555167454, 3.43626757139922, 3.862275799260325, 3.5733906731045817]
+# # stds : [4.249101151756255, 1.2650934765136224, 6.1784006604447175, 6.162467820031652]
+# # devices : [0, 1, 0, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/krxe"
+
+# # krxen
+# root_dataset : "../../data/benchmark/krxen/moftransformer"
+# downstreams : ["K_Xe","K_Kr","Q_Xe","Q_Kr","P_Xe","P_Kr","Sperm_Xe_Kr","Sperm_Kr_Xe"]
+# means : [0.00014021379184658812, 1.2783129146440862e-05, 22.614422424371746, 18.547550194979003, 1023.6951954791766, 1115.4541059264836, 1.8053503973625005, 1.530334244001565]
+# stds : [0.00019665279978607178, 1.4339350636554896e-05, 16.178952159708242, 5.631109350329999, 1392.2093475826714, 1434.336444492743, 2.0177674147125253, 1.7374548810630008]
+# devices : [0, 1, 2, 3, 0, 1, 2, 3]
+# # downstreams : ['K_Xe', 'Q_Xe', 'P_Xe', 'Sperm_Xe_Kr']
+# # means : [0.00014021379184658812, 22.614422424371746, 1023.6951954791766, 1.8053503973625005]
+# # stds : [0.00019665279978607178, 16.178952159708242, 1392.2093475826714, 2.0177674147125253]
+# # devices : [0, 0, 1, 1]
+# # downstreams : ['K_Kr', 'Q_Kr', 'P_Kr', 'Sperm_Kr_Xe']
+# # means : [1.2783129146440862e-05, 18.547550194979003, 1115.4541059264836, 1.530334244001565]
+# # stds : [1.4339350636554896e-05, 5.631109350329999, 1434.336444492743, 1.7374548810630008]
+# # devices : [0, 0, 1, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/krxen"
+
+# # mechanical
+# root_dataset : "../../data/benchmark/mechanical/moftransformer"
+# downstreams : ['KVRH', 'GVRH']
+# means : [6.26789051995649, 2.3573401870859145]
+# stds : [7.007365244699859, 4.083619421217116]
+# devices : [1, 2]
+# save_dir : f"../../lightning_logs/{ckpt}/mechanical"
+
+# # n2o2
+# root_dataset : "../../data/benchmark/n2o2/moftransformer"
+# # downstreams : ['SelfdiffusionofO2cm2s', 'SelfdiffusionofN2cm2s', 'O2N2ratio', 'HenrysconstantO2', 'HenrysconstantN2', 'SelfdiffusionofO2cm2sinfDilute', 'SelfdiffusionofN2cm2sinfDilute']
+# # means : [0.00014710440153965383, 0.00013985968576879358, 1.0269497264758463, 4.458247626711444e-06, 8.088311423663136e-06, 0.000157350744440713, 0.0001562673664931542]
+# # stds : [9.893298635159494e-05, 0.00010035524805311898, 0.20019352174974156, 5.506754463331816e-06, 0.0001003645623041495, 0.00010204962852252397, 0.00011053712966709611]
+# # devices : [0, 0, 1, 2, 0, 1, 2]
+# downstreams : ['SelfdiffusionofN2cm2s', 'HenrysconstantN2', 'SelfdiffusionofN2cm2sinfDilute']
+# means : [0.00013985968576879358, 8.088311423663136e-06, 0.0001562673664931542]
+# stds : [0.00010035524805311898, 0.0001003645623041495, 0.00011053712966709611]
+# devices : [0, 1, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/n2o2"
+
+# # tsd
+# root_dataset : "../../data/benchmark/tsd/moftransformer"
+# downstreams : ['tsd']
+# means : [357.57904921170666]
+# stds : [87.33380367076087]
+# devices : [2]
+# save_dir : f"../../lightning_logs/{ckpt}/tsd"
+
+# # aromatic
+# root_dataset : "../../data/benchmark/aromatic/moftransformer"
+# downstreams : ['Np', 'Sp']
+# means : [1.5142621028645464, 1.7705196989363956]
+# stds : [1.356041973694878, 14.576825907081757]
+# devices : [0, 3]
+# save_dir : f"../../lightning_logs/{ckpt}/aromatic"
+
+# # c3h6c3h8
+# root_dataset : "../../data/benchmark/c3h6c3h8/moftransformer"
+# downstreams : ['C3H8_C3H6_Selectivity_1Bar']
+# means : [1.2764234433002453]
+# stds : [0.18801091607708664]
+# devices : [0]
+# save_dir : f"../../lightning_logs/{ckpt}/c3h6c3h8"
+
+# # c3h6c3h8coremof
+# root_dataset : "../../data/benchmark/c3h6c3h8coremof/moftransformer"
+# downstreams : ['C3H8_loadings','C3H6_loadings','C3H8_C3H6_Selectivity_1bar','TSN_S_1Bar',
+#      'C3H8_Henry_298K','C3H6_Henry_298K','C3H8_C3H6_Selectivity_infinite']
+# means : [0.78053924050517, 3.429825233551699, 1.2999646454298375, 0.0959675036927622, 0.011637477483751841, 0.006249235997784329, 1.673704865762186]
+# stds : [0.4543403228980805, 1.9109205997148622, 0.27240866864862834, 0.08242617503703618, 0.017736511297106954, 0.009304497277727803, 0.3956473500967208]
+# devices : [1, 2, 3, 1, 2, 3, 3]
+# save_dir : f"../../lightning_logs/{ckpt}/c3h6c3h8coremof"
+
+# bandgap
+root_dataset: "../../data/benchmark/bandgag"
+downstreams: ["bandgap"]
+means: [2.073601635357143]
+stds: [1.1290137889202578]
+devices: [1]
+ckpt: "./ckpt/pmtransformer"
+save_dir: "./lightning_logs/pmtransformer/bandgap"
+
+# ftstable
+# root_dataset : "../../data/benchmark/ftstable/moftransformer"
+# downstreams : ['5p', '25p', '50p', '100p', '200p']
+# means : [5.067965115, 5.140210207999999, 5.193544124, 5.1553756156, 5.138610477479999, 5.174043730319999, 5.16588784584, 5.164197034440001, 5.152057325633334, 5.157646701102857, 5.1488765963150005]
+# stds : [2.573853913542935, 2.6238694466769252, 2.6129495483226908, 2.5822069827429166, 2.5595937395396637, 2.5657856089409306, 2.5749492430207948, 2.567094000130787, 2.560836377652986, 2.5620965476914517, 2.560538738320891]
+# devices : [0, 0, 0, 0, 0]
+# save_dir : f"../../lightning_logs/{ckpt}/ftstable"
+
+# # prestable
+# root_dataset : "../../data/benchmark/prestable/moftransformer"
+# downstreams : ['diffusivity_log', 'raspa_100bar']
+# means : [-8.30658313773107, 487.8659142734314]
+# stds : [1.4900015510873854, 63.50646599121088]
+# devices : [0, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/prestable"
+
+# # prestable
+# root_dataset : "../../data/benchmark/prestable/moftransformer"
+# downstreams : ['diffusivity_log_25', 'diffusivity_log_50', 'diffusivity_log_75', 'diffusivity_log_100', 'raspa_100bar_25', 'raspa_100bar_50', 'raspa_100bar_75', 'raspa_100bar_100']
+# means : [-8.264446321556461, -8.306486929396964, -8.296133934950102, -8.30698729187694, 488.32116493830347, 488.2361514666918, 488.31594575862175, 487.8844555582227]
+# stds : [1.4154276428253572, 1.477963213770533, 1.458623751995552, 1.4898842840140623, 62.899606322245845, 63.13296266774251, 62.963655139450296, 63.50047868880408]
+# # downstreams : downstreams[:2]
+# # means : means[:2]
+# # stds : stds[:2]
+# devices : [0, 0, 0, 0, 1, 1, 1, 1]
+# save_dir : f"../../lightning_logs/{ckpt}/prestable"

@@ -27,20 +27,20 @@ import torch
 import yaml
 import torch.nn as nn
 
-# from modules.module_reg import CrossFormer
-from modules.module import CrossFormer
-from modules.heads import RegressionHead, ClassificationHead, Pooler
-from modules import objectives
 import pytorch_lightning as pl
 from pathlib import Path
-from spbnet.utils.echo import start, end, title
+
+from ..modules.module import SpbNet
+from ..modules.heads import RegressionHead, ClassificationHead, Pooler
+from ..modules import objectives
+from ..utils.echo import start, end, title
 
 cur_dir = Path(__file__).parent
 
 
-class CrossFormerTrainer(pl.LightningModule):
+class SpbNetTrainer(pl.LightningModule):
     def __init__(self, config: dict):
-        super(CrossFormerTrainer, self).__init__()
+        super(SpbNetTrainer, self).__init__()
         self.save_hyperparameters()
 
         self.config = config
@@ -48,7 +48,7 @@ class CrossFormerTrainer(pl.LightningModule):
         self.optimizer_config = config
 
         model_config = self.model_config
-        self.model = CrossFormer(model_config)
+        self.model = SpbNet(model_config)
         # print(self.model)
 
         # pooler
@@ -99,7 +99,7 @@ def predAgc(cifid: str, ckpt: str):
     with open((cur_dir / "./config.yaml").absolute(), "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     # config["visualize"] = True
-    model = CrossFormerTrainer(config=config)
+    model = SpbNetTrainer(config=config)
     model.load_state_dict(state_dict, strict=True)
     model.eval()
     end(f"End to load weight from {ckpt}")

@@ -1,14 +1,6 @@
 from typing import Any, Optional
 from functools import partial
-
-# from pytorch_lightning.utilities.types import STEP_OUTPUT
-# from model.crossformer import CrossFormer
-from spbnet.modules.module import CrossFormer
-from spbnet.modules.heads import RegressionHead, Pooler, ClassificationHead
-from spbnet.modules.optimize import set_scheduler
-from spbnet.modules import objectives
 from torch import nn
-from spbnet.data.dataset_feat import Dataset
 import pytorch_lightning as pl
 import pandas as pd
 import json
@@ -24,59 +16,44 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from einops import rearrange
 from torch import optim
 import numpy as np
-from spbnet.utils.echo import title, start, end, param, err
+import click
+import joblib
+
+from ..datamodule.dataset import FeatDataset as Dataset
+from ..modules.module import SpbNet
+from ..modules.heads import RegressionHead, Pooler, ClassificationHead
+from ..modules.optimize import set_scheduler
+from ..modules import objectives
+from ..utils.echo import title, start, end, param, err
 
 cur_dir = Path(__file__).parent
 
 
-def r2_score(y_true, y_pred):
-    # 计算总平均值
-    mean_true = torch.mean(y_true)
-
-    # 计算总平方和
-    total_ss = torch.sum((y_true - mean_true) ** 2)
-
-    # 计算残差平方和
-    resid_ss = torch.sum((y_true - y_pred) ** 2)
-
-    # 计算R2分数
-    r2 = 1 - (resid_ss / total_ss)
-
-    return r2
-
-
-class CrossFormerTrainer(pl.LightningModule):
+class SpbNetTrainer(pl.LightningModule):
     def __init__(self, config: dict):
-        super(CrossFormerTrainer, self).__init__()
+        super(SpbNetTrainer, self).__init__()
         self.save_hyperparameters()
 
         self.config = config
 
-        self.model_config = config
-        self.optimizer_config = config
-
-        model_config = self.model_config
-        self.model = CrossFormer(model_config)
+        self.model = SpbNet(config)
         # print(self.model)
         # self.model = AtomFormer(config)
 
-        self.mean = config["mean"]
-        self.std = config["std"]
-
         # pooler
-        self.pooler = Pooler(model_config["hid_dim"])
+        self.pooler = Pooler(config["hid_dim"])
         self.pooler.apply(objectives.init_weights)
 
         # void fraction prediction
-        self.vfp_head = RegressionHead(model_config["hid_dim"])
+        self.vfp_head = RegressionHead(config["hid_dim"])
         self.vfp_head.apply(objectives.init_weights)
 
         # topo classify
-        self.tc_head = ClassificationHead(model_config["hid_dim"], config["topo_num"])
+        self.tc_head = ClassificationHead(config["hid_dim"], config["topo_num"])
         self.tc_head.apply(objectives.init_weights)
 
         # atom grid classify
-        self.agc_head = nn.Linear(model_config["hid_dim"], 1)
+        self.agc_head = nn.Linear(config["hid_dim"], 1)
         self.agc_head.apply(objectives.init_weights)
 
         self.mse_loss = nn.MSELoss()
@@ -88,12 +65,11 @@ class CrossFormerTrainer(pl.LightningModule):
     def on_test_epoch_start(self) -> None:
         self.cifids = []
 
-        self.feats = []
-        self.structure_feats = []
-        self.potential_feats = []
-        self.agc_preds = []
-        self.agc_labels = []
-        self.self_attns = []
+        self.cls_contents = []
+        self.structure_contents = []
+        self.potential_contents = []
+        self.tc_preds = []
+        self.attns = []
 
         return super().on_test_epoch_start()
 
@@ -104,169 +80,268 @@ class CrossFormerTrainer(pl.LightningModule):
 
         # item
         cls_feat = feat["cls_feat"]
-        cls_feat = self.pooler(cls_feat).detach().cpu().numpy()
-        structure_feat = (
-            feat["structure_feat"].detach().cpu().numpy()
-        )  # [B, max_graph_len, hid_dim]
-        structure_mask = (
-            feat["structure_mask"].detach().cpu().numpy()
-        )  # [B, max_graph_len]
-        potential_feat = feat["potential_feat"]  # [B, 1004, hid_dim]
-        agc_pred = (
-            self.agc_head(potential_feat)
-            .detach()
-            .cpu()
-            .numpy()
-            .reshape((batch_size, -1))
-        )  # [B, 1004]
-        potential_feat = potential_feat.detach().cpu().numpy()
-        atomgrid: np.array = batch["atomgrid"].detach().cpu().numpy()
-        agc_label = atomgrid
-        patch_size = self.model_config["patch_size"]["lj"]
-        agc_label = rearrange(
-            agc_label,
-            "b (h p1) (w p2) (d p3) -> b (h w d) (p1 p2 p3)",
-            p1=patch_size,
-            p2=patch_size,
-            p3=patch_size,
-        )
-        agc_label = np.sum(
-            agc_label, axis=-1
-        )  # [B, GRID / PatchSize * GRID / PatchSize * GRID / PatchSize]
-        self_attn = feat["sa_attn"].detach().cpu().numpy()  # [B, 1004, 1004]
-        cross_attn = feat["ca_attn"].detach().cpu().numpy()  # [B, 1004, max_graph_len]
+        cls_feat = self.pooler(cls_feat)
+        cls_feat_tensor = cls_feat.clone()
+        cls_feat = cls_feat.detach().cpu().numpy()
 
-        # sample
-        # structure
-        structure_feat = structure_feat.reshape(
-            (-1, structure_feat.shape[-1])
-        )  # [B * max_graph_len, hid_dim]
-        structure_mask = structure_mask.reshape(-1)  # [B * max_graph_len]
-        indices_of_ones = np.where(structure_mask == 0)[0]
-        structure_indices = np.random.choice(
-            indices_of_ones, size=20 * batch_size, replace=False
-        )
-        structure_feat = structure_feat[structure_indices]  # [20 * B, hid_dim]
+        fconfig = self.config["feat"]
 
-        # potential
-        potential_feat = potential_feat.reshape((-1, potential_feat.shape[-1]))
-        agc_pred = agc_pred.reshape(-1)
-        agc_label = agc_label.reshape(-1)
-        potential_indices = np.random.randint(
-            0, potential_feat.shape[0], 20 * batch_size
-        )
-        potential_feat = potential_feat[potential_indices]
-        agc_pred = agc_pred[potential_indices]
-        agc_label = agc_label[potential_indices]
+        if 'cls' in fconfig['save']:
+            tc_pred = self.tc_head(cls_feat_tensor)  # [B, N_Topos]
+            tc_pred = torch.argmax(tc_pred, dim=-1).reshape(-1).detach().cpu().numpy()
+            vfp_pred = self.vfp_head(cls_feat_tensor)  # [B]
 
-        # attn
-        attn_indices = np.random.randint(0, batch_size, 5)
-        self_attn = self_attn[attn_indices, 2:-2, 2:-2]  # [5, 1000, 1000]
+            cls_content = {
+                "cls_feat": cls_feat,
+                "tc_pred": tc_pred,
+                "vfp_pred": vfp_pred
+            }
+            self.cls_contents.append(cls_content)
 
-        for feat_name in self.config["feats"]:
-            if feat_name == "potential":
-                self.potential_feats.append(potential_feat)  # [20 * B, hid_dim]
-            if feat_name == "structure":
-                self.structure_feats.append(structure_feat)  # [20 * B, hid_dim]
-            if feat_name == "agc_pred":
-                self.agc_preds.append(agc_pred)  # [20 * B]
-            if feat_name == "agc_label":
-                self.agc_labels.append(agc_label)  # [20 * B]
-            if feat_name == "feat":
-                self.feats.append(feat)  # [B]
-            if feat_name == "self_attn":
-                self.self_attns.append(self_attn)  # [5, 1000, 1000]
+        if "structure" in fconfig["save"]:
+            sfconfig = fconfig["structure"]
+
+            structure_feat = (
+                feat["structure_feat"].detach().cpu().numpy()
+            )  # [B, max_graph_len, hid_dim]
+            structure_mask = (
+                feat["structure_mask"].detach().cpu().numpy()
+            )  # [B, max_graph_len]
+            atom_num = feat["atom_num"].detach().cpu().numpy()  # [B, max_graph_len]
+            atom_attn = feat["ca_attn"][:, 0].detach().cpu().numpy()  # [B, max_graph_len]
+
+            structure_feat = structure_feat.reshape(
+                (-1, structure_feat.shape[-1])
+            )  # [B * max_graph_len, hid_dim]
+            atom_num = atom_num.reshape(-1)  # [B * max_graph_len]
+            atom_attn = atom_attn.reshape(-1)  # [B * max_graph_len]
+            structure_mask = structure_mask.reshape(-1)  # [B * max_graph_len]
+
+            # sample
+            if sfconfig["sample"]:
+                indices_of_ones = np.where(structure_mask == 0)[0]
+                structure_indices = np.random.choice(
+                    indices_of_ones,
+                    size=sfconfig["sample_num_per_crystal"] * batch_size,
+                    replace=False,
+                )
+                structure_feat = structure_feat[structure_indices]  # [20 * B, hid_dim]
+                atom_num = atom_num[structure_indices]  # [20 * B, hid_dim]
+                atom_attn = atom_attn[structure_indices]  # [20 * B, hid_dim]
+            
+            structure_content = dict()
+            if sfconfig['feat']:
+                structure_content['feat'] = structure_feat
+            if sfconfig['attn']:
+                structure_content['attn'] = atom_attn
+            if sfconfig['atom_num']:
+                structure_content['atom_num'] = atom_num
+
+            self.structure_contents.append(structure_content)
+
+        if "potential" in fconfig["save"]:
+            pfconfig = fconfig["potential"]
+            patch_size = self.config["patch_size"]["lj"]
+            potential_feat = feat['potential_feat']
+            agc_pred = self.agc_head(potential_feat)
+
+            lj = batch["lj"]  # [B, H, W, D]
+            lj = lj.detach().cpu().numpy()
+            lj = rearrange(
+                agc_label,
+                "b (h p1) (w p2) (d p3) -> b (h w d) (p1 p2 p3)",
+                p1=patch_size,
+                p2=patch_size,
+                p3=patch_size,
+            )
+            lj = np.sum(
+                agc_label, axis=-1
+            )  # [B, GRID / PatchSize * GRID / PatchSize * GRID / PatchSize]
+
+            agc_pred = (
+                agc_pred
+                .detach()
+                .cpu()
+                .numpy()
+                .reshape((batch_size, -1))
+            )  # [B, 1004]
+            potential_feat = potential_feat.detach().cpu().numpy()
+            atomgrid = batch["atomgrid"].detach().cpu().numpy()
+            agc_label = atomgrid
+            agc_label = agc_label.transpose(-1, -3)  # [b x y z] -> [b h w d]
+            agc_label = rearrange(
+                agc_label,
+                "b (h p1) (w p2) (d p3) -> b (h w d) (p1 p2 p3)",
+                p1=patch_size,
+                p2=patch_size,
+                p3=patch_size,
+            )
+            agc_label = np.sum(
+                agc_label, axis=-1
+            )  # [B, GRID / PatchSize * GRID / PatchSize * GRID / PatchSize]
+            potential_attn = feat['ca_attn'][:, 0, 2:-2].detach().cpu().numpy() # [B, n_token]
+
+            potential_feat = potential_feat.reshape((-1, potential_feat.shape[-1]))
+            agc_pred = agc_pred.reshape(-1)
+            agc_label = agc_label.reshape(-1)
+            potential_attn = potential_attn.reshape(-1)
+
+
+            if pfconfig["sample"]:
+                potential_indices = np.random.randint(
+                    0,
+                    potential_feat.shape[0],
+                    pfconfig["sample_num_per_crystal"] * batch_size,
+                )
+                potential_feat = potential_feat[potential_indices]
+                agc_pred = agc_pred[potential_indices]
+                agc_label = agc_label[potential_indices]
+                potential_attn = potential_attn[potential_indices]
+                lj = lj[potential_indices]
+
+            potential_content = dict()
+            if pfconfig['feat']:
+                potential_content['feat'] = potential_feat
+            if pfconfig['attn']:
+                potential_content['attn'] = potential_attn
+            if pfconfig['agc']:
+                potential_content['agc_label'] = agc_label
+                potential_content['agc_pred'] = agc_pred
+            if pfconfig['value']:
+                potential_content['lj'] = lj
+
+            self.potential_contents.append(potential_content)
+
+        if "attn" in fconfig['save']:
+            self_attn = feat["sa_attn"].detach().cpu().numpy()  # [B, 1004, 1004]
+            cross_attn = (
+                feat["ca_attn"].detach().cpu().numpy()
+            )  # [B, 1004, max_graph_len]
+
+            if fconfig['self_attn']['sample']:
+                # attn
+                attn_indices = np.random.randint(0, batch_size, fconfig['self_attn']['sample_num_per_batch'])
+                self_attn = self_attn[attn_indices, 2:-2, 2:-2]  # [S, 1000, 1000]
+                cross_attn = cross_attn[attn_indices, 2:-2] # [S, 1000, max_graph_len]
+        
+            attn_content = {
+                "self_attn": self_attn,
+                "cross_attn": cross_attn
+            }
+
+            self.attn_contents.append(attn_content)
+
+        if "tc_pred" in fconfig['save']:
+            self.tc_preds.append(tc_pred)
+
 
     def on_test_epoch_end(self) -> None:
         save_dir = Path(self.config["save_dir"])
         save_dir.mkdir(exist_ok=True, parents=True)
 
-        for feat_name in self.config["feats"]:
+        fconfig = self.config["feat"]
+
+        def collate(contents):
+            # contents: List[dict]
+            assert len(contents) > 0
+
+            ret = dict()
+            keys = list(contents[0].keys())
+            for key in keys:
+                ret[key] = np.concatenate(content[key] for content in contents)
+            return ret
+
+        print(fconfig)
+
+        for feat_name in fconfig['save']:
+            if feat_name == 'cls':
+                joblib.dump(
+                    collate(self.cls_contents), str(save_dir / f"cls.joblib")
+                )  # [N * 20, hid_dim]
             if feat_name == "potential":
-                potential_feats = np.concatenate(self.potential_feats)
-                np.save(
-                    save_dir / f"potential_feats.npy", potential_feats
+                joblib.dump(
+                    collate(self.potential_contents), str(save_dir / f"potential.joblib")
                 )  # [N * 20, hid_dim]
             if feat_name == "structure":
-                structure_feats = np.concatenate(self.structure_feats)
-                np.save(
-                    save_dir / f"structure_feats.npy", structure_feats
+                joblib.dump(
+                    collate(self.structure_contents), str(save_dir / f"potential.joblib")
                 )  # [N * 20, hid_dim]
-            if feat_name == "agc_pred":
-                agc_preds = np.concatenate(self.agc_preds)
-                np.save(save_dir / f"agc_preds.npy", agc_preds)  # [N * 20]
-            if feat_name == "agc_label":
-                agc_labels = np.concatenate(self.agc_labels)
-                np.save(save_dir / f"agc_labels.npy", agc_labels)  # [N * 20]
-            if feat_name == "feat":
-                feats = np.concatenate(self.feats)
-                np.save(save_dir / f"feats.npy", feats)  # [N, hid_dim]
-            if feat_name == "self_attn":
-                self_attns = np.concatenate(self.self_attns)
-                np.save(
-                    save_dir / f"self_attns.npy", self_attns
-                )  # [N * 5 / B, 1000, 1000]
+            if feat_name == "attn":
+                joblib.dump(
+                    collate(self.attn_contents), str(save_dir / f"attn.joblib")
+                )  # [N * 20, hid_dim]
+
         return super().on_test_epoch_end()
 
 
 def feat(config_path: str):
     title("START TO OBTAIN FEATURES")
 
-    base_config_path = (cur_dir / "config.yaml").absolute()
-    with open(base_config_path, "r") as f:
-        base_config = yaml.load(f, Loader=yaml.FullLoader)
+    config = yaml.load((cur_dir / "../configs" / "config.model.yaml").open("r"))
+    optimize_config = yaml.load(
+        (cur_dir / "../configs" / "config.optimize.yaml").open("r")
+    )
+    default_train_config = yaml.load(
+        (cur_dir / "../configs" / "config.feat.yaml").open("r")
+    )
 
     with open(config_path, "r") as f:
-        user_config = yaml.load(f, Loader=yaml.FullLoader)
+        user_config: dict = yaml.load(f, Loader=yaml.FullLoader)
 
-    if user_config.get("data_dir") is None:
-        err(f"Please specify modal directory `data_dir`!")
+    if user_config.get("root_dir") is None:
+        err(f"Please specify root directory `root_dir`")
+        return
+    if user_config.get("ckpt") is None:
+        err(f"Please specify ckpt `ckpt`")
         return
     if user_config.get("id_prop") is None:
-        err(f"Please specify label data `id_prop`")
-        return
-    if user_config.get("task") is None:
-        err(f"Please specify task")
-        return
+        warn(f"Label data `id_prop` not specified, use default `benchmark.test`")
     if user_config.get("log_dir") is None:
-        err(f"Please specify log directory")
-        return
-    if user_config.get("save_dir") is None:
-        err(f"Please specify save directory")
-        return
+        warn(f"Log directory not specified, use default `./lightning_logs/feat`")
 
-    base_config.update(user_config)
-    config = base_config
+    # base_config.update(user_config)
+    config = {**base_config, **user_config}
 
     # check
     device = config["device"]
-    task = config["task"]
 
     # handle
-    id_prop_path = Path(config["id_prop"])
-    ckpt_path = Path(config["ckpt"])  # TODO: CKPT
-    data_dir = Path(config["data_dir"])
+    root_dir = Path(config["root_dir"])
+    task = config["task"]
+    id_prop = config["id_prop"]
+    id_prop_path = root_dir / f"{id_prop}.csv"
+    modal_dir = root_dir / config["modal_folder"]
+    device = config["device"]
     log_dir = Path(config["log_dir"])
+    load_dir = Path(config["load_dir"])
 
     # split train & val
-    id_prop_dir = id_prop_path.parent
-    test_df = pd.read_csv(id_prop_path.absolute(), dtype={"cifid": str})
-    test_dataset = Dataset(test_df, data_dir, config["nbr_fea_len"], task)
+    df = pd.read_csv(str(id_prop_path))
 
-    # id_prop
-    id_prop_df = test_df.copy()
-    filter_id_prop_df = id_prop_df.dropna(subset=[task])
-
-    # mean & std
-    mean = None
-    std = None
-    mean = filter_id_prop_df[task].mean()
-    std = filter_id_prop_df[task].std()
-    config["mean"] = float(mean)
-    config["std"] = float(std)
+    dataset = Dataset(
+        df=df,
+        modal_dir=modal_dir,
+        nbr_fea_len=config["nbr_fea_len"],
+        task_type=task_type,
+        useBasis=config["useBasis"],
+        useCharge=config["useCharge"],
+        img_size=config["img_size"]["lj"],
+        isPredict=True,
+    )
+    loader = DataLoader(
+        dataset,
+        batch_size=config["batch_size"],
+        shuffle=False,
+        num_workers=8,
+        collate_fn=dataset.collate_fn,
+    )
 
     # train
-    checkpoint_callback = ModelCheckpoint(monitor="val_mae", mode="min", save_last=True)
+    checkpoint_callback = ModelCheckpoint(
+        monitor="val_mae" if task_type == "regression" else "val_acc",
+        mode="min" if task_type == "regression" else "max",
+        save_last=True,
+    )
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
     logger = TensorBoardLogger(save_dir=(log_dir / task).absolute(), name="")
     trainer = pl.Trainer(
@@ -281,32 +356,24 @@ def feat(config_path: str):
         log_every_n_steps=config["log_every_n_steps"],
         logger=logger,
     )
-    model = CrossFormerTrainer(config)
-    if not config["ckpt"] == "scratch":
-        ckpt = torch.load(ckpt_path)
-        model.load_state_dict(ckpt["state_dict"], strict=True)
+    model = SpbNetTrainer(config)
+
+    ckpt_path = config['ckpt']
+    ckpt = torch.load(ckpt_path)
+    loadret = model.load_state_dict(ckpt["state_dict"], strict=False)
+    print("Load return", loadret)
 
     trainer.test(
         model=model,
-        dataloaders=DataLoader(
-            test_dataset,
-            batch_size=config["batch_size"],
-            shuffle=False,
-            num_workers=4,
-            collate_fn=partial(Dataset.collate, img_size=config["img_size"]),
-        ),
-        ckpt_path=None,
+        dataloaders=loader,
     )
 
 
-def main():
-    config_path = "./config.yaml"
-    with open(config_path, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    tasks = config["tasks"]
-
-    test(0, config_path)
+@click.command()
+@click.option("--config-path", "-C", type=str)
+def feat_cli(config_path: str):
+    feat(config_path)
 
 
 if __name__ == "__main__":
-    main()
+    feat_cli()

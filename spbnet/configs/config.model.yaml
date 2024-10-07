@@ -1,0 +1,35 @@
+structure: true
+lj: true
+coulomb: false
+
+useBasis: true
+useCharge: false
+
+# structure
+atom_fea_len: 64
+nbr_fea_len: 64
+max_graph_len: 512
+max_nbr_atoms: 12
+
+# potential
+img_size:
+  lj: 30
+  coulomb: 20
+patch_size:
+  lj: 3
+  coulomb: 2
+in_chans: 1
+max_grid_len: -1
+
+# others
+nlayers:
+  conv: 3
+  structure: 6
+  potential: 6
+
+# transformer
+hid_dim: 768
+nhead: 12
+dropout: 0.15
+
+visualize: false

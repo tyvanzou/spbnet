@@ -1,4 +1,3 @@
-from spbnet.modules.module import CrossFormer
 import yaml
 from pathlib import Path
 from ase.io import read
@@ -13,6 +12,8 @@ from ase.io import write
 from pathlib import Path
 import os
 from ase.visualize.plot import plot_atoms
+
+from ..modules.module import SpbNet
 
 
 def get_grid_data(data_dir, cifid):

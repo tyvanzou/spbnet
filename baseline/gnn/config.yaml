@@ -1,0 +1,119 @@
+# # dataset
+
+# root_dir: ../../data/benchmark/bandgap
+# id_prop: benchmark.csv
+# target: bandgap
+# ckpt: scratch
+# log_dir: "./lightning_logs/spherenet/bandgap"
+# # devices: [0]
+# devices: [1]
+# # devices: [4, 5, 6, 7]
+
+root_dir: ../../data/benchmark/coremof
+id_prop: benchmark
+target: N2-77-100000
+ckpt: scratch
+log_dir: ./lightning_logs/spherenet/coremof
+devices: [0, 2, 3]
+
+# root_dir: ../../data/benchmark/tsd
+# id_prop: benchmark.csv
+# target: tsd
+# ckpt: scratch
+# log_dir: "./lightning_logs/visnet/tsd"
+# devices: [0, 1, 2, 3]
+
+
+# optimize
+num_epochs: 300
+batch_size: 1
+accumulate_grad_batches: 16
+optim_type: adamw
+lr: 0.0001
+end_lr: 0
+lr_mult: 1
+weight_decay: 0.00
+decay_power: 1
+warmup_steps: 0.05
+max_steps: -1
+
+accelerator: gpu
+precision: 16-mixed
+strategy: ddp
+
+# model
+gnn: spherenet
+
+radius_graph_smof: &radius_graph_smof
+  # for qmof and hmof
+  cutoff: 19.0
+  max_num_neighbors: 32
+
+radius_graph_lmof: &radius_graph_lmof
+  # for CoREMOF
+  cutoff: 12.0
+  max_num_neighbors: 16
+
+radius_graph:
+  <<: *radius_graph_lmof
+
+# visnet
+visnet:
+  <<: *radius_graph
+
+  # qmof, hmof
+  hidden_channels: 512
+  num_rbf: 64
+
+  # # coremof
+  # hidden_channels: 128
+  # num_rbf: 32
+
+  reduce_op: mean # default: sum
+  num_layers: 6 # default: 9 for QM9, but is too large for memory usage in MOFs dataset
+
+  # default settings
+  lmax: 2
+  vecnorm_type: max_min
+  trainable_vecnorm: false
+  num_heads: 8
+  trainable_rbf: false
+  max_z: 100
+  vertex: False
+  atomref: null
+
+dimenet:
+  <<: *radius_graph
+
+  # default settings
+  hidden_channels: 512
+  num_blocks: 4
+  int_emb_size: 64
+  basis_emb_size: 8
+  out_emb_channels: 256
+  num_spherical: 7
+  num_radial: 6
+  envelope_exponent: 5
+  num_before_skip: 1
+  num_after_skip: 2
+  num_output_layers: 3
+
+spherenet:
+  <<: *radius_graph
+
+  num_layers: 6 # default 4
+  hidden_channels: 256 # default 128
+  int_emb_size: 64 # defualt 64
+
+  # default settings
+  out_channels: 1
+  basis_emb_size_dist: 8
+  basis_emb_size_angle: 8
+  basis_emb_size_torsion: 8
+  out_emb_channels: 256
+  num_spherical: 7
+  num_radial: 6
+  envelope_exponent: 5
+  num_before_skip: 1
+  num_after_skip: 2
+  num_output_layers: 3

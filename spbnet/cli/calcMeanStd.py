@@ -1,5 +1,6 @@
-from spbnet.data.calcMeanStd import calcMeanStd
 import argparse
+
+from ..datamodule.calcMeanStd import calcMeanStd
 
 
 class CLICommand:

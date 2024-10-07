@@ -1,0 +1,57 @@
+# configable
+epochs: 60
+ckpt: ~ # e.g. ./lightning_logs/version_0/checkpoints/last.ckpt
+
+feat:
+  save:
+    - cls
+    - structure
+    - potential
+    - attn # include self attn and cross attn
+  attn:
+    sample: true
+    sample_num_per_batch: 5
+  structure:
+    feat: false
+    attn: true
+    atom_num: true
+    sample: false
+    sample_num_per_crystal: 20
+  potential:
+    feat: false
+    attn: true
+    sample: false
+    sample_num_per_crystal: 20
+    value: true
+    agc: true
+
+# feats: [
+#     # "potential",
+#     # 'structure',
+#     # "agc_pred",
+#     # "agc_label",
+#     "cls_feat",
+#     # "tc_pred",
+#     # 'self_attn',
+#   ]
+
+# hmof
+root_dir: ~
+modal_folder: "."
+id_prop: benchmark
+log_dir: ./lightning_logs/feat
+save_dir: ./vis/feat
+device: [0]
+
+batch_size: 8
+accumulate_grad_batches: 4
+
+accelerator: gpu
+strategy: ddp_find_unused_parameters_true
+precision: 16-mixed
+log_every_n_steps: 10
+
+# MODEL
+
+# OPTIMIZER
+warmup_steps: 0.05

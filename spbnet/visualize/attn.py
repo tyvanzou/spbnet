@@ -1,15 +1,16 @@
 import argparse
 from pathlib import Path
-from spbnet.utils.echo import title, start, end
-from .buildModalData import buildModalData
-from spbnet.modules.module import CrossFormer
-from .utils import get_grid_data, get_graph, collate, get_atoms
 import numpy as np
 from pathlib import Path
 from subprocess import Popen
 # from rdkit import Chem
 import json
 from ase.io import read, write
+
+from .buildModalData import buildModalData
+from ..utils.echo import title, start, end
+from ..modules.module import SpbNet
+from .utils import get_grid_data, get_graph, collate, get_atoms
 
 cur_dir = Path(__file__).parent
 
@@ -45,7 +46,7 @@ def attn(cif_path: Path, modal_dir: Path, ckpt: Path, out_dir: Path):
     with open((cur_dir / "config.yaml").absolute(), "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     config["visualize"] = True
-    model = CrossFormer(config=config)
+    model = SpbNet(config=config)
     model.load_state_dict(state_dict, strict=True)
     model.eval()
 

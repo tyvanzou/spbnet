@@ -1,5 +1,6 @@
-from spbnet.data.calcAtomNum import calcAtomNum
 import argparse
+
+from ..datamodule.calcAtomNum import calcAtomNum
 
 
 class CLICommand:

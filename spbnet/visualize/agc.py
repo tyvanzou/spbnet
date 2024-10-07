@@ -6,7 +6,8 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from spbnet.utils.echo import start, end
+
+from ..utils.echo import start, end
 
 
 def boxplot(agc_labels: np.array, agc_preds: np.array):

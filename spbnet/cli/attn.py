@@ -1,6 +1,7 @@
 import argparse
-from spbnet.visualize.attn import attn
 from pathlib import Path
+
+from ..visualize.attn import attn
 
 
 class CLICommand:

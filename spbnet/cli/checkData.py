@@ -1,5 +1,6 @@
-from spbnet.data.checkData import checkData
 import argparse
+
+from ..datamodule.checkData import checkData
 
 
 class CLICommand:

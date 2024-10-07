@@ -1,0 +1,28 @@
+epoch: 200
+device: [0, 1, 2, 3]
+batch_size: 32
+accumulate_grad_batches: 8
+
+resume: ~
+
+useBasis: true
+useCharge: false
+useMoc: false
+
+img_size:
+  lj: 30
+  coulomb: 20
+
+# root_dir: ./data/pretrain
+modal_folder: "."
+id_prop: vftopo
+log_dir: ./lightning_logs/pretrain
+
+vfp: 1
+tc: 1
+agc: 1
+
+accelerator: gpu
+strategy: ddp
+precision: 16-mixed
+log_every_n_steps: 10

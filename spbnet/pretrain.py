@@ -1,14 +1,9 @@
 from typing import Any, Optional
 from functools import partial
+import click
 
-# from pytorch_lightning.utilities.types import STEP_OUTPUT
-# from model.crossformer import CrossFormer
-from spbnet.modules.module import CrossFormer
-from spbnet.modules.heads import RegressionHead, ClassificationHead, Pooler
-from spbnet.modules.optimize import set_scheduler
-from spbnet.modules import objectives
 from torch import optim, nn
-from data.dataset_pretrain import Dataset
+import torch.nn.functional as F
 import pytorch_lightning as pl
 import pandas as pd
 import yaml
@@ -20,44 +15,53 @@ from torch.utils.data import DataLoader
 from einops import rearrange
 from sklearn.model_selection import train_test_split
 from pathlib import Path
-from spbnet.utils.echo import err, title, start, end, param
+
+from torchmetrics import Accuracy
+
+from .datamodule.dataset import PretrainDataset as Dataset
+from .modules.module import SpbNet
+from .modules.heads import RegressionHead, ClassificationHead, Pooler
+from .modules.optimize import set_scheduler
+from .modules import objectives
+from .utils.echo import err, title, start, end, param
 
 
 cur_dir = Path(__file__).parent
 
 
-class CrossFormerTrainer(pl.LightningModule):
+class SpbNetTrainer(pl.LightningModule):
     def __init__(self, config: dict):
-        super(CrossFormerTrainer, self).__init__()
+        super(SpbNetTrainer, self).__init__()
         self.save_hyperparameters()
 
         self.config = config
-        self.model_config = config
-        self.optimizer_config = config
 
-        model_config = self.model_config
-        self.model = CrossFormer(model_config)
-        # print(self.model)
+        self.model = SpbNet(config)
 
         # pooler
-        self.pooler = Pooler(model_config["hid_dim"])
+        self.pooler = Pooler(config["hid_dim"])
         self.pooler.apply(objectives.init_weights)
 
         # void fraction prediction
-        self.vfp_head = RegressionHead(model_config["hid_dim"])
+        self.vfp_head = RegressionHead(config["hid_dim"])
         self.vfp_head.apply(objectives.init_weights)
 
         # topo classify
-        self.tc_head = ClassificationHead(model_config["hid_dim"], config["topo_num"])
+        self.tc_head = ClassificationHead(config["hid_dim"], config["topo_num"])
         self.tc_head.apply(objectives.init_weights)
 
         # atom grid classify
-        self.agc_head = nn.Linear(model_config["hid_dim"], 1)
+        self.agc_head = nn.Linear(config["hid_dim"], 1)
         self.agc_head.apply(objectives.init_weights)
+
+        if self.config["useMoc"]:
+            self.moc_head = nn.Linear(config["hid_dim"], 1)
+            self.moc_head.apply(objectives.init_weights)
 
         self.mse_loss = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
         self.cross_entropy = nn.CrossEntropyLoss()
+        self.acc = Accuracy()
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:
         # lr log
@@ -89,8 +93,7 @@ class CrossFormerTrainer(pl.LightningModule):
         topo_pred = self.tc_head(cls_feat)  # [batch_size, topo_num]
         topo = topo.reshape(vf.shape[0])  # [batch_size]
         tc_loss = self.cross_entropy(topo_pred, topo)
-        # tc_loss = self.focal_loss(topo_pred, topo)
-        tc_acc = self.cal_acc(topo, topo_pred)
+        tc_acc = self.acc(topo, topo_pred)
         self.log("train_tc_loss", tc_loss, batch_size=topo.shape[0], sync_dist=True)
         self.log("train_tc_acc", tc_acc, batch_size=topo.shape[0], sync_dist=True)
 
@@ -100,9 +103,9 @@ class CrossFormerTrainer(pl.LightningModule):
         ]  # [B, GRID / PathSize, GRID / PathSize, GRID / PathSize, hid_dim] aka [B, 10, 10, 10, 768]
         agc_pred = self.agc_head(potential_feat)
         agc_label: torch.Tensor = atomgrid
-        patch_size = self.model_config["patch_size"]["lj"]
+        patch_size = self.config["patch_size"]["lj"]
         # NOTE: Correct
-        # agc_label = agc_label.transpose(-1, -3) # [b x y z] -> [b h w d]
+        agc_label = agc_label.transpose(-1, -3)  # [b x y z] -> [b h w d]
         agc_label = rearrange(
             agc_label,
             "b (h p1) (w p2) (d p3) -> b (h w d) (p1 p2 p3)",
@@ -122,11 +125,38 @@ class CrossFormerTrainer(pl.LightningModule):
             "train_agc_mae", agc_mae, batch_size=agc_label.shape[0], sync_dist=True
         )
 
+        if self.config["useMoc"]:
+            mo_labels = feat["mo_labels"].reshape(-1)  # [B, max_graph_len]
+            moc_pred = self.moc_head(feat["structure_feat"]).reshape(
+                -1
+            )  # [B, max_graph_len]
+            mask = mo_labels != -100
+            mo_labels = mo_labels[mask]
+            moc_pred = moc_pred[mask]
+            moc_loss = F.binary_cross_entropy_with_logits(
+                input=moc_pred, target=mo_labels
+            )
+            threshold = 0.5
+            moc_pred = torch.where(moc_pred > 0.5, 1, 0)
+            score = torch.where(moc_pred == mo_labels, 1.0, 0.0)
+            acc = torch.mean(score)
+            self.log(
+                "train_moc_loss",
+                moc_loss,
+                batch_size=agc_label.shape[0],
+                sync_dist=True,
+            )
+            self.log(
+                "train_moc_acc", acc, batch_size=agc_label.shape[0], sync_dist=True
+            )
+
         loss = (
-            self.optimizer_config["vfp"] * vfp_mse
-            + self.optimizer_config["tc"] * tc_loss
-            + self.optimizer_config["agc"] * agc_mse
+            self.config["vfp"] * vfp_mse
+            + self.config["tc"] * tc_loss
+            + self.config["agc"] * agc_mse
         )
+        if self.config["useMoc"]:
+            loss += self.config["moc"] * moc_loss
         return loss
 
     def validation_step(self, batch, batch_idx) -> torch.Tensor:
@@ -165,7 +195,8 @@ class CrossFormerTrainer(pl.LightningModule):
         ]  # [B, GRID / PathSize, GRID / PathSize, GRID / PathSize, hid_dim] aka [B, 10, 10, 10, 768]
         agc_pred = self.agc_head(potential_feat)
         agc_label: torch.Tensor = atomgrid
-        patch_size = self.model_config["patch_size"]["lj"]
+        patch_size = self.config["patch_size"]["lj"]
+        agc_label = agc_label.transpose(-1, -3)  # [b x y z] -> [b h w d]
         agc_label = rearrange(
             agc_label,
             "b (h p1) (w p2) (d p3) -> b (h w d) (p1 p2 p3)",
@@ -181,62 +212,126 @@ class CrossFormerTrainer(pl.LightningModule):
         self.log("val_agc_mse", agc_mse, batch_size=agc_label.shape[0], sync_dist=True)
         self.log("val_agc_mae", agc_mae, batch_size=agc_label.shape[0], sync_dist=True)
 
-    def cal_acc(self, y, pred):
-        predicted_labels = torch.argmax(pred, dim=-1)
-        correct_predictions = (predicted_labels == y).int()
-        accuracy = correct_predictions.float().mean()
-        return accuracy
+        if self.config["useMoc"]:
+            mo_labels = feat["mo_labels"].reshape(-1)  # [B, max_graph_len]
+            moc_pred = self.moc_head(feat["structure_feat"]).reshape(
+                -1
+            )  # [B, max_graph_len]
+            mask = mo_labels != -100
+            mo_labels = mo_labels[mask]
+            moc_pred = moc_pred[mask]
+            moc_loss = F.binary_cross_entropy_with_logits(
+                input=moc_pred, target=mo_labels
+            )
+            threshold = 0.5
+            moc_pred = torch.where(moc_pred > 0.5, 1, 0)
+            score = torch.where(moc_pred == mo_labels, 1.0, 0.0)
+            acc = torch.mean(score)
+            self.log(
+                "val_moc_loss", moc_loss, batch_size=agc_label.shape[0], sync_dist=True
+            )
+            self.log("val_moc_acc", acc, batch_size=agc_label.shape[0], sync_dist=True)
 
     def configure_optimizers(self) -> Any:
         return set_scheduler(self)
 
 
 def pretrain(config_path: Path):
-    if type(config_path) is str:
-        config_path = Path(config_path)
-    if not config_path.exists():
-        err(f"config_path: {config_path.absolute()} not exists!")
+    config = yaml.full_load((cur_dir / "configs" / "config.model.yaml").open("r"))
+    optimize_config = yaml.full_load(
+        (cur_dir / "configs" / "config.optimize.yaml").open("r")
+    )
+    default_train_config = yaml.full_load(
+        (cur_dir / "configs" / "config.pretrain.yaml").open("r")
+    )
 
-    with open((cur_dir / "config.pretrain.yaml").absolute(), "r") as f:
-        base_config = yaml.load(f, Loader=yaml.FullLoader)
+    base_config = {**config, **optimize_config, **default_train_config}
 
     with open(config_path.absolute(), "r") as f:
-        user_config = yaml.load(f, Loader=yaml.FullLoader)
+        user_config = yaml.full_load(f)
 
-    if user_config.get("data_dir") is None:
-        err(f"Please specify modal directory `data_dir`!")
+    if user_config.get("root_dir") is None:
+        err(f"Please specify data root directory `root_dir`!")
         return
     if user_config.get("id_prop") is None:
-        err(f"Please specify label data `id_prop`")
-        return
+        warn(f"Label data `id_prop` not specified, default is `vftopo`")
     if user_config.get("log_dir") is None:
-        err(f"Please specify log directory")
-        return
+        warn(f"Log directory not specified, defualt is `lightning_logs/pretrain`")
 
     base_config.update(user_config)
+
     config = base_config
     param(**config)
 
     title("START TO PRETRAIN")
 
-    df = pd.read_csv(config["id_prop"])
-    train_df, val_df = train_test_split(df, test_size=0.1, random_state=42)
-    data_dir = Path(config["data_dir"])
+    root_dir = Path(config["root_dir"])
+    id_prop_path = root_dir / config["id_prop"]
+    id_prop_dir = id_prop_path.parent
+    df = pd.read_csv(id_prop_path)
+    splits = ["train", "val"]
+    if all(
+        [
+            (id_prop_dir / f"{id_prop_path.stem}.{split}.csv").exists()
+            for split in splits
+        ]
+    ):
+        print(f"Id prop file {id_prop_path.absolute()} has already been splitted")
+        dfs = {
+            split: pd.read_csv(
+                id_prop_dir / f"{id_prop_path.stem}.{split}.csv", dtype={"cifid": str}
+            )
+            for split in splits
+        }
+        train_df = dfs["train"]
+        val_df = dfs["val"]
+    else:
+        train_df, val_df = train_test_split(df, test_size=0.05, random_state=42)
+        print(
+            f"Id prop file {id_prop_path.absolute()} has not been splitted, split as 95:5, aka [{len(train_df)}:{len(val_df)}]"
+        )
+        train_df.to_csv(id_prop_dir / f"{id_prop_path.stem}.train.csv", index=False)
+        val_df.to_csv(id_prop_dir / f"{id_prop_path.stem}.val.csv", index=False)
+        dfs = {"train": train_df, "val": val_df, "all": df}
 
-    train_dataset = Dataset(train_df, data_dir, config["nbr_fea_len"])
-    val_dataset = Dataset(val_df, data_dir, config["nbr_fea_len"])
+    modal_dir = root_dir / config["modal_folder"]
 
-    config["topo_num"] = train_dataset.get_topo_num()
+    # to get total number of topology
+    datasets = {
+        Dataset(
+            df=dfs[split],
+            modal_dir=modal_dir,
+            nbr_fea_len=config["nbr_fea_len"],
+            useBasis=config["useBasis"],
+            useCharge=config["useCharge"],
+            useMoc=config["useMoc"],
+            img_size=config["img_size"]["lj"],
+        )
+        for split in (
+            ["all"] + splits
+        )  # order is important, because we need to include all topos in `topo2tid.json`
+    }
+    config["topo_num"] = dfs["all"].get_topo_num()
+    loaders = {
+        split: DataLoader(
+            datasets[split],
+            batch_size=config["batch_size"],
+            shuffle=split == "train",
+            num_workers=8,
+            collate_fn=datasets[split].collate,
+        )
+        for splits in splits
+    }
 
     checkpoint_callback = ModelCheckpoint(
         monitor="val_agc_mae", mode="min", save_last=True
-    )
+    )  # not important, we use last.ckpt for fine-tuning
     logger = TensorBoardLogger(save_dir=config["log_dir"], name="")
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
     trainer = pl.Trainer(
         max_epochs=config["epoch"],
         min_epochs=0,
-        devices=config["cuda"],
+        devices=config["device"],
         accelerator=config["accelerator"],
         strategy=config["strategy"],
         callbacks=[checkpoint_callback, lr_monitor],
@@ -245,28 +340,22 @@ def pretrain(config_path: Path):
         log_every_n_steps=config["log_every_n_steps"],
         logger=logger,
     )
-    model = CrossFormerTrainer(config)
-    # ckpt = torch.load(
-    #     "./lightning_logs/scratch/co2_2.5bar/shaper/checkpoints/epoch=146-step=13818.ckpt"
-    # )
-    # model.load_state_dict(ckpt["state_dict"], strict=False)
+    model = SpbNetTrainer(config)
     trainer.fit(
         model=model,
-        train_dataloaders=DataLoader(
-            train_dataset,
-            batch_size=config["batch_size"],
-            shuffle=True,
-            num_workers=8,
-            collate_fn=partial(Dataset.collate, img_size=config["img_size"]),
-            persistent_workers=True,
-        ),
-        val_dataloaders=DataLoader(
-            val_dataset,
-            batch_size=config["batch_size"],
-            shuffle=False,
-            num_workers=8,
-            collate_fn=partial(Dataset.collate, img_size=config["img_size"]),
-            persistent_workers=True,
-        ),
-        # ckpt_path="./lightning_logs/version_2/checkpoints/last.ckpt",
+        train_dataloaders=loaders["train"],
+        val_dataloaders=loaders["val"],
+        ckpt_path=config["resume"],  # to resume, default None
     )
+
+
+@click.command()
+@click.option(
+    "--config-path", "-C", type=click.Path(exists=True, dir_okay=False, type=Path)
+)
+def pretrain_cli(config_path: Path):
+    pretrain(config_path)
+
+
+if __name__ == "__main__":
+    pretrain_cli()

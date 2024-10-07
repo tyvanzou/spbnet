@@ -1,5 +1,6 @@
 import argparse
-from spbnet.data.buildAtomGrid import buildAtomGrid
+
+from ..datamodule.buildAtomGrid import buildAtomGrid
 
 
 class CLICommand:

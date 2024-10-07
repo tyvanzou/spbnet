@@ -233,6 +233,7 @@ class GraphEmbeddings(nn.Module):
         uni_idx,
         uni_count,
         moc=None,
+        charge=None,
     ):
         """
         Args:
@@ -253,16 +254,19 @@ class GraphEmbeddings(nn.Module):
             atom_fea = conv(atom_fea, nbr_fea, nbr_idx)  # [N', atom_fea_len]
         atom_fea = self.fc(atom_fea)  # [N', hid_dim]
 
-        new_atom_fea, new_atom_fea_pad_mask = self.reconstruct_batch(
-            atom_fea, crystal_atom_idx
+        new_atom_num, new_atom_fea, new_atom_fea_pad_mask, mo_labels, charges = (
+            self.reconstruct_batch(atom_num, atom_fea, crystal_atom_idx, moc, charge)
         )
         # [B, max_graph_len, hid_dim], [B, max_graph_len]
         return (
+            new_atom_num,
             new_atom_fea,
             new_atom_fea_pad_mask,
+            mo_labels,
+            charges,
         )  # None will be replaced with MOC
 
-    def reconstruct_batch(self, atom_fea, crystal_atom_idx):
+    def reconstruct_batch(self, atom_num, atom_fea, crystal_atom_idx, moc, charge):
         # return new_atom_fea, mask, mo_label
         batch_size = len(crystal_atom_idx)
 
@@ -272,6 +276,21 @@ class GraphEmbeddings(nn.Module):
         new_atom_fea_pad_mask = torch.full(
             size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.int
         ).to(atom_fea)
+        new_atom_num = torch.full(
+            size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.int
+        ).to(atom_fea)
+        if moc is not None:
+            mo_labels = torch.full(
+                size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.int
+            ).to(atom_fea)
+        else:
+            mo_labels = None
+        if charge is not None:
+            charges = torch.full(
+                size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.float
+            ).to(atom_fea)
+        else:
+            charges = None
         for crystal_idx, atom_idxs in enumerate(crystal_atom_idx):
             if len(atom_idxs) < self.max_graph_len:
                 new_atom_fea_pad_mask[crystal_idx] = torch.cat(
@@ -282,11 +301,21 @@ class GraphEmbeddings(nn.Module):
                         ),
                     ]
                 ).to(atom_fea)
+                if moc is not None:
+                    mo_labels[crystal_idx, moc[crystal_idx]] = 1
+                    mo_labels[crystal_idx, len(atom_idxs) :] = -100
             else:
                 new_atom_fea_pad_mask[crystal_idx] = torch.zeros(
                     [self.max_graph_len], dtype=torch.int
                 ).to(atom_fea)
+                if moc is not None:
+                    molabel = torch.LongTensor(moc[crystal_idx])  # List[int]
+                    molabel = molabel[torch.where(molabel < self.max_graph_len)]
+                    mo_labels[crystal_idx, molabel] = 1
             idx_ = atom_idxs[: self.max_graph_len]
             new_atom_fea[crystal_idx][: len(idx_)] = atom_fea[idx_]
+            new_atom_num[crystal_idx][: len(idx_)] = atom_num[idx_]
+            if charge is not None:
+                charges[crystal_idx][: len(idx_)] = charge[idx_]
 
-        return new_atom_fea, new_atom_fea_pad_mask
+        return new_atom_num, new_atom_fea, new_atom_fea_pad_mask, mo_labels, charges

@@ -1,0 +1,25 @@
+# configable
+epochs: 60
+ckpt: ./ckpt/spbnet.160k.ckpt
+
+# hmof
+root_dir: ~
+modal_folder: "."
+id_prop: benchmark
+task_type: ~
+log_dir: ./lightning_logs/finetune
+device: [0]
+
+batch_size: 8
+accumulate_grad_batches: 4
+
+accelerator: gpu
+strategy: ddp_find_unused_parameters_true
+precision: 16-mixed
+log_every_n_steps: 10
+
+# MODEL
+useTopoHelp: false
+
+# OPTIMIZER
+warmup_steps: 0.05

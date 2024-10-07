@@ -1,0 +1,16 @@
+root_dir: ../../data/benchmark/bandgap
+id_prop: benchmark
+target: bandgap
+ckpt: scratch
+log_dir: "./lightning_logs/bandgap"
+devices: [4, 5, 6, 7]
+
+# root_dir: ../../data/benchmark/coremof
+# id_prop: benchmark.csv
+# target: N2-77-100000
+# ckpt: scratch
+# log_dir: "./lightning_logs/coremof"
+# devices: [0, 1, 2, 3]
+
+num_epochs: 200
+batch_size: 16

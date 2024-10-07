@@ -1,0 +1,74 @@
+epoch: 200
+device: [0, 1, 2, 3, 4, 5, 6, 7]
+# device: [1]
+# device: [0]
+batch_size: 128
+accelerator: "gpu"
+strategy: "ddp_find_unused_parameters_true"
+accumulate_grad_batches: 4
+precision: "16-mixed"
+log_every_n_steps: 5
+log_dir: "./lightning_logs/pretrain_porous"
+
+topo_num: _
+
+# data_dir: "./data/18wmof"
+# # id_prop: "./data/18wmof/vftopo.coulomb.csv"
+# # id_prop: "./data/18wmof/vftopo.filter.18w.csv"
+# id_prop: "./data/18wmof/vftopo.filter.moc.18w.csv"
+data_dir: "/localData/user081901/data/spbnet/porous"
+id_prop: "/localData/user081901/data/spbnet/porous/vftopo.porous.filter.csv"
+
+# model:
+# categors
+structure: True
+lj: True
+coulomb: False
+correction: True
+
+# graps
+atom_fea_len: 64
+nbr_fea_len: 64
+max_graph_len: 512
+max_nbr_atoms: 12
+
+# potential
+img_size:
+  lj: 30
+  coulomb: 10
+patch_size:
+  lj: 3
+  coulomb: 1
+in_chans: 1
+max_grid_len: -1
+draw_false_grid: False
+visualize: False
+
+# others
+conv_layers: 3
+nlayers:
+  structure: 6
+  potential: 6
+
+# transformer
+hid_dim: 768
+nhead: 12
+dropout: 0.15
+
+# optimizer:
+lr: 0.0001
+decay_power: "cosine"
+weight_decay: 0.01
+warmup_steps: 0.15
+max_steps: -1
+# original
+optim_type: "adamw"
+end_lr: 0
+lr_mult: 1
+
+vfp: 1
+tc: 1
+agc: 2
+
+useMoc: False
+moc: 2

@@ -1,10 +1,33 @@
-/build
-/dist
-/spbnet.egg-info
-/.pytest_cache
-/tests/data/spbnet
-/tests/ckpt
-/tests/logs/**/checkpoints/
+**/build
+**/dist
+
+# repo
+/baseline/JMPpkg
+
+# tmp file
+**/spbnet.egg-info
+**/.pytest_cache
+**/.DS_Store
+**/__pycache__
+**/tmp
+**/tmp.py
+
+# data
 /demo
-/*.tar.gz
-.DS_Store
+**/data
+**/ckpt
+
+# logs
+**/*_logs
+**/logs
+**/pred
+baseline/pmtransformer
+baseline/Uni-MOF
+**/*.log
+
+# bak
+**/*_bak
+
+# compressed
+**/*.tar.gz
+**/*.zip

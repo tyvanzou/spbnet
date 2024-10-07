@@ -7,9 +7,9 @@ import os
 # 获取终端宽度
 def get_terminal_width():
     try:
-      term_size = os.get_terminal_size().columns
+        term_size = os.get_terminal_size().columns
     except:
-      term_size = 50
+        term_size = 50
     return term_size
 
 
@@ -18,14 +18,15 @@ terminal_width = get_terminal_width()
 
 def title(sentence: str, len=terminal_width, charac="="):
     print(
-        Fore.YELLOW
-        + (" SpbNet: " + sentence + " ").center(len, charac)
+        "\n"
+        + Fore.YELLOW
+        + (" SpbNet: " + sentence.upper() + " ").center(len, charac)
         + Style.RESET_ALL
     )
 
 
 def err(log: str):
-    print(Fore.RED + 'ERROR: ' + log + Style.RESET_ALL)
+    print(Fore.RED + "ERROR: " + log + Style.RESET_ALL)
 
 
 def warn(log: str):
@@ -33,12 +34,12 @@ def warn(log: str):
 
 
 def end(log: str):
-    print(Fore.BLUE + log + Style.RESET_ALL)
+    print(Fore.BLUE + "END: " + log + Style.RESET_ALL)
 
 
 def start(log: str):
-    print(Fore.CYAN + log + Style.RESET_ALL)
+    print(Fore.CYAN + "START: " + log + Style.RESET_ALL)
 
 
-def param(**kwargs):
-    pp(kwargs)
+def param(**params):
+    pp(params)

@@ -1,7 +1,9 @@
-from spbnet.data.buildData import buildData
 import argparse
-from spbnet.visualize.buildModalData import buildModalData
 from pathlib import Path
+
+from ..datamodule.buildData import buildData
+from ..visualize.buildModalData import buildModalData
+
 
 
 class CLICommand:

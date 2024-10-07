@@ -1,0 +1,32 @@
+# configable
+epochs: 60
+ckpt: ~ # e.g. ./lightning_logs/finetune/hmof/CO2-298-2.5/version_0, NOTE not **/*.ckpt, because we need to load hparams from `hparams.yaml`
+
+# hmof
+# task_type will be loaded from ckpt['hparams']
+root_dir: ~
+modal_folder: "."
+id_prop: benchmark.test
+log_dir: ./lightning_logs/predict
+device: [0]
+
+batch_size: 8
+accumulate_grad_batches: 4
+
+accelerator: gpu
+strategy: ddp_find_unused_parameters_true
+precision: 16-mixed
+log_every_n_steps: 10
+
+# MODEL
+structure: true
+lj: true
+coulomb: false
+
+useBasis: true
+useCharge: false
+useTopoHelp: false
+
+
+# OPTIMIZER
+warmup_steps: 0.05
