@@ -9,10 +9,6 @@ useBasis: true
 useCharge: false
 useMoc: false
 
-img_size:
-  lj: 30
-  coulomb: 20
-
 # root_dir: ./data/pretrain
 modal_folder: "."
 id_prop: vftopo
@@ -23,6 +19,8 @@ tc: 1
 agc: 1
 
 accelerator: gpu
-strategy: ddp
+strategy: ddp_find_unused_parameters_true
 precision: 16-mixed
 log_every_n_steps: 10
+
+limit_train_batches: 1.0 # for test

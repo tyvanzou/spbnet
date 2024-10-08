@@ -16,7 +16,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.model_selection import train_test_split
 
 from torchmetrics.classification import MulticlassAccuracy
-from torchmetrics.regression import R2Score
+from torchmetrics.regression import R2Score, PearsonCorrCoef
 
 from .datamodule.dataset import FinetuneDataset as Dataset
 from .modules.module import SpbNet
@@ -74,6 +74,7 @@ class SpbNetTrainer(pl.LightningModule):
         self.mae_loss = nn.L1Loss()
         self.cross_entropy = nn.CrossEntropyLoss()
         self.r2score = R2Score()
+        self.pearsonr = PearsonCorrCoef()
 
         # mae
         self.min_mae = 1e5
@@ -111,6 +112,7 @@ class SpbNetTrainer(pl.LightningModule):
             mse_raw = torch.mean((target - pred) ** 2)
             mae_raw = torch.mean(torch.abs(target - pred))
             r2 = self.r2score(target, pred)
+            p = self.pearsonr(target, pred)
             self.log(
                 "train_mse_raw",
                 mse_raw,
@@ -119,6 +121,7 @@ class SpbNetTrainer(pl.LightningModule):
             )
             self.log("train_mae_raw", mae_raw, batch_size=batch_size, sync_dist=True)
             self.log("train_r2", r2, batch_size=batch_size, sync_dist=True)
+            self.log("train_p", p, batch_size=batch_size, sync_dist=True)
 
             loss = mse
 
@@ -155,6 +158,7 @@ class SpbNetTrainer(pl.LightningModule):
             mse_raw = torch.mean((target - pred) ** 2)
             mae_raw = torch.mean(torch.abs(target - pred))
             r2 = self.r2score(target, pred)
+            p = self.pearsonr(target, pred)
             self.log(
                 "val_mse",
                 mse_raw,
@@ -163,6 +167,7 @@ class SpbNetTrainer(pl.LightningModule):
             )
             self.log("val_mae", mae_raw, batch_size=batch_size, sync_dist=True)
             self.log("val_r2", r2, batch_size=batch_size, sync_dist=True)
+            self.log("val_p", p, batch_size=batch_size, sync_dist=True)
 
         elif self.task_type == "classification":
             value = batch["target"]  # List[str]
@@ -238,9 +243,11 @@ class SpbNetTrainer(pl.LightningModule):
             mae = torch.mean(torch.abs((pred - target)))
             mse = torch.mean((pred - target) ** 2)
             r2 = self.r2score(target, pred)
+            p = self.pearsonr(target, pred)
             self.log("test_mae", mae)
             self.log("test_mse", mse)
             self.log("test_r2", r2)
+            self.log("test_p", p)
         elif self.task_type == "classification":
             acc_list = [
                 1 if pred_i == target_i else 0
@@ -259,8 +266,8 @@ class SpbNetTrainer(pl.LightningModule):
         return set_scheduler(self)
 
 
-def finetune(config_path: str):
-    torch.set_float32_matmul_precision('medium')
+def finetune(config_path: Path):
+    torch.set_float32_matmul_precision("medium")
 
     model_config = yaml.full_load((cur_dir / "configs" / "config.model.yaml").open("r"))
     optimize_config = yaml.full_load(
@@ -270,7 +277,7 @@ def finetune(config_path: str):
         (cur_dir / "configs" / "config.finetune.yaml").open("r")
     )
 
-    with open(config_path, "r") as f:
+    with config_path.open("r") as f:
         user_config: dict = yaml.full_load(f)
 
     if user_config.get("root_dir") is None:
@@ -410,8 +417,10 @@ def finetune(config_path: str):
 
 
 @click.command()
-@click.option("--config-path", type=str)
-def finetune_cli(config_path: str):
+@click.option(
+    "--config-path", "-C", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+def finetune_cli(config_path: Path):
     finetune(config_path)
 
 

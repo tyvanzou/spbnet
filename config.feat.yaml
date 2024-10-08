@@ -1,116 +1,35 @@
-# configable
-epochs: 60
-# ckpt: "./ckpt/spbnet.1m.ckpt"
-# ckpt: "./ckpt/spbnet.180k.ckpt"
-# ckpt: "./ckpt/spbnet.porous.320k.ckpt"
-# ckpt: "./lightning_logs/mechan/useStructFeat/pretrain/all/N2-77-100000/version_0/checkpoints/epoch=33-step=340.ckpt"
-ckpt: "./lightning_logs/mechan/useStructFeat/scratch/all/N2-77-100000/version_0/checkpoints/epoch=51-step=520.ckpt"
-# ckpt: "./lightning_logs/mechan/shortcut/pretrain/structure/1/N2-77-100000/version_0/checkpoints/last.ckpt"
-# ckpt: "./ckpt/last.ckpt"
+ckpt: ./lightning_logs/mechan/useStructFeat/pretrain/all/N2-77-100000/version_0/checkpoints/last.ckpt # e.g. ./lightning_logs/version_0/checkpoints/last.ckpt
 
-feats: [
-    "potential",
-    # 'structure',
-    "agc_pred",
-    "agc_label",
-    "cls_feat",
-    # "tc_pred",
-    # 'self_attn',
-  ]
-
-# # cof
-# data_dir: "./data/cof"
-# id_prop: "./data/cof/benchmark.csv"
-# tasks: ["highbar"]
-# log_dir: "./logs/cof"
-# devices: [[0]]
+feat:
+  save:
+    - cls
+    # - tc
+    # - vf
+    - structure
+    # - potential
+    # - attn # include self attn and cross attn
+  attn:
+    sample: true
+    sample_num_per_batch: 5
+  structure:
+    feat: false
+    attn: true
+    atom_num: true
+    sample: false
+    sample_num_per_crystal: 20
+  potential:
+    feat: false
+    attn: true
+    sample: false
+    sample_num_per_crystal: 20
+    value: true
+    agc: true
 
 # coremof
-data_dir: "./data/benchmark/coremof"
-id_prop: "./data/benchmark/coremof/benchmark.csv"
-task: "N2-77-100000"
-task_type: "regression"
-log_dir: "./lightning_logs/tmp"
-save_dir: "./lightning_logs/mechan/useStructFeatPred/scratch"
-device: [7]
-
-# # 18wmof
-# data_dir: "/localData/user081901/data/spbnet/porous"
-# id_prop: "/localData/user081901/data/spbnet/18wmof/vftopo.7k.csv"
-# task: "voidfraction"
-# task_type: "regression"
-# log_dir: "./lightning_logs/tmp"
-# save_dir: "./tmp"
-# device: [7]
-
-# # coremof
-# data_dir: "./data/18wmof"
-# id_prop: "./data/18wmof/vftopo.7k.train.csv"
-# task: "voidfraction"
-# task_type: "regression"
-# log_dir: "./lightning_logs/mechan/useStructFeatPredBak/pretrain"
-# save_dir: "./lightning_logs/mechan/useStructFeatPredBak/pretrain"
-# # log_dir: "./lightning_logs/mechan/useStructFeatPredBak/scratch"
-# # save_dir: "./lightning_logs/mechan/useStructFeatPredBak/scratch"
-# device: [0]
-
-# stable
-batch_size: 64
-accelerator: "gpu"
-strategy: "ddp"
-accumulate_grad_batches: 8
-precision: "32"
-log_every_n_steps: 10
-# topo_num: 1103
-# topo_num: 1094
-topo_num: 1326
-
-# model:
-# category
-structure: True
-lj: True
-coulomb: False
-correction: True
-decoder_only: False
-
-useCharge: False
-useTopoHelp: False
-
-# graph
-atom_fea_len: 64
-nbr_fea_len: 64
-max_graph_len: 512
-max_nbr_atoms: 12
-
-# potential
-img_size:
-  lj: 30
-  coulomb: 20
-patch_size:
-  lj: 3
-  coulomb: 2
-in_chans: 1
-max_grid_len: -1
-draw_false_grid: False
-visualize: True
-
-# others
-conv_layers: 3
-nlayers:
-  structure: 6
-  potential: 6
-
-# transformer
-hid_dim: 768
-nhead: 12
-dropout: 0.15
-
-# optimizer:
-optim_type: "adamw"
-lr: 0.0001
-end_lr: 0
-lr_mult: 1
-weight_decay: 0.01
-decay_power: 1
-warmup_steps: 0.05
-max_steps: -1
+batch_size: 128
+root_dir: ./data/benchmark/coremof
+modal_folder: "."
+id_prop: benchmark.train
+log_dir: ./lightning_logs/feat
+save_dir: ./vis/feat
+device: [0]

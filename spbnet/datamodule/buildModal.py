@@ -106,7 +106,7 @@ def buildModal(
 
 @click.command()
 @click.option(
-    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, type=Path)
+    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--cif-folder", type=str, default="cif")
 @click.option("--modal-folder", type=str, default="spbnet")

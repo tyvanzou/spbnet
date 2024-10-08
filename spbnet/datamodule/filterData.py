@@ -124,7 +124,7 @@ def filterData(root_dir: Path, modal_folder: str, id_prop: str, outlier: int):
 
 @click.command()
 @click.option(
-    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, type=Path)
+    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--modal-folder", "-M", type=str, default=".")
 @click.option("--id-prop", "-I", type=str, default="benchmark")

@@ -30,6 +30,7 @@ class BaseDataset(torch.utils.data.Dataset):
         """
         super().__init__()
 
+        self.modal_dir = modal_dir
         self.nbr_fea_len = nbr_fea_len
         self.useBasis = useBasis
         self.img_size = img_size
@@ -238,7 +239,7 @@ class FinetuneDataset(BaseDataset):
         df: pd.DataFrame,
         modal_dir: Path,
         nbr_fea_len: int,
-        task: str=None,
+        task: str = None,
         task_type: str = "regression",
         useBasis: bool = True,
         useCharge: bool = False,
@@ -259,7 +260,7 @@ class FinetuneDataset(BaseDataset):
             self.df = df.dropna(subset=[task])
         else:
             self.df = df
-        self.modal_dir = modal_dir
+
         self.task = task
         self.task_type = task_type
 
@@ -324,7 +325,7 @@ class PretrainDataset(BaseDataset):
             img_size=img_size,
         )
 
-        self.df = df.dropna(subset["topo", "voidfraction"])
+        self.df = df.dropna(subset=["topo", "voidfraction"])
         self.useMoc = useMoc
         self.useBasis = useBasis
         self.useCharge = useCharge
@@ -364,6 +365,8 @@ class PretrainDataset(BaseDataset):
         voidfraction = item["voidfraction"]
 
         ret = self.load_base_modals(cifid)
+
+        ret.update(self.load_atomgrid(cifid))
         ret.update({"topo": self.topo2tid[topo], "voidfraction": voidfraction})
 
         if self.useMoc:
@@ -400,13 +403,12 @@ class FeatDataset(BaseDataset):
         df: pd.DataFrame,
         modal_dir: Path,
         nbr_fea_len: int,
-        feats: List[str],
+        feat_config: dict,
         useBasis: bool = True,
         useCharge: bool = False,
         img_size: int = 30,
     ):
         super().__init__(
-            df=df,
             modal_dir=modal_dir,
             nbr_fea_len=nbr_fea_len,
             useBasis=useBasis,
@@ -414,8 +416,8 @@ class FeatDataset(BaseDataset):
         )
 
         self.df = df  # since not target, here we do not dropna
-        self.modal_dir = modal_dir
-        self.feats = feats
+
+        self.feat_config = feat_config
         self.useBasis = useBasis
         self.useCharge = useCharge
 
@@ -428,7 +430,10 @@ class FeatDataset(BaseDataset):
 
         ret = self.load_base_modals(cifid)
 
-        if "agc_pred" in self.feats or "agc_label" in self.feats:
+        if (
+            "agc_pred" in self.feat_config["save"]
+            or "agc_label" in self.feat_config["save"]
+        ):
             ret.update(self.load_atomgrid(cifid))
 
         return ret
@@ -441,7 +446,10 @@ class FeatDataset(BaseDataset):
         if self.useCharge:
             modals.append("charge")
 
-        if "agc_pred" in self.feats or "agc_label" in self.feats:
+        if (
+            "agc_pred" in self.feat_config["save"]
+            or "agc_label" in self.feat_config["save"]
+        ):
             modals.append("atomgrid")
 
         dict_batch = super().collate_fn(batch, modals)

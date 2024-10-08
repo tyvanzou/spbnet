@@ -122,6 +122,8 @@ class SpbNet(nn.Module):
 
     def forward(self, batch, mask_grid=False):
         cifid = batch["cifid"]
+        batch_size = len(cifid)
+        device = None
 
         if self.config["structure"]:
             atom_num = batch["atom_num"]  # [N']
@@ -131,51 +133,46 @@ class SpbNet(nn.Module):
             uni_idx = batch["uni_idx"]  # list [B]
             uni_count = batch["uni_count"]  # list [B]
 
+            device = atom_num.device
+
+            # graph embeds
+            (
+                atom_num,  # [B, max_graph_len]
+                graph_embed,  # [B, max_graph_len, hid_dim],
+                graph_mask,  # [B, max_graph_len],
+                mo_labels,  # [B, max_graph_len] default moc is None
+                charges,  # [B, max_graph_len] default charge is None
+            ) = self.graph_embeddings(
+                atom_num=atom_num,
+                nbr_idx=nbr_idx,
+                nbr_fea=nbr_fea,
+                crystal_atom_idx=crystal_atom_idx,
+                uni_idx=uni_idx,
+                uni_count=uni_count,
+                moc=batch.get("moc"),  # default moc is None
+                charge=batch.get("charge"),  # default charge is None
+            )
+
+            if self.config["useCharge"]:
+                charges.unsqueeze_(-1)
+                charges_embed = self.charge_embeddings(charges)
+                graph_embed += charges_embed
+
         if self.config["lj"]:
             # grid = batch["grid"]  # [B, C, H, W, D, 20]
             lj = batch["lj"]  # [B, H, W, D]
             corr = batch["corr"]  # [B, H, W, D, 18]
 
-        if self.config["coulomb"]:
-            # coulomb = None
-            coulomb = batch["coulomb"]  # [B, H, W, D]
-            coulomb.unsqueeze_(1)  # [B, C, H, W, D]
+            device = lj.device
 
-        volume = batch["volume"]  # list [B]
+            # grid useBasis
+            if self.config["useBasis"]:
+                corr = self.potential_mapper(corr).squeeze(-1)  # [B, H, W, D]
+                grid = (lj + corr).unsqueeze(1)  # [B, 1, H, W, D]
+            else:
+                grid = lj
+                grid = grid.unsqueeze(1)
 
-        # grid useBasis
-        if self.config["useBasis"]:
-            corr = self.potential_mapper(corr).squeeze(-1)  # [B, H, W, D]
-            grid = (lj + corr).unsqueeze(1)  # [B, 1, H, W, D]
-        else:
-            grid = lj
-            grid = grid.unsqueeze(1)
-        # grid = (bias + grid_delta).unsqueeze(1)
-
-        # graph embeds
-        (
-            atom_num,  # [B, max_graph_len]
-            graph_embed,  # [B, max_graph_len, hid_dim],
-            graph_mask,  # [B, max_graph_len],
-            mo_labels,  # [B, max_graph_len] default moc is None
-            charges,  # [B, max_graph_len] default charge is None
-        ) = self.graph_embeddings(
-            atom_num=atom_num,
-            nbr_idx=nbr_idx,
-            nbr_fea=nbr_fea,
-            crystal_atom_idx=crystal_atom_idx,
-            uni_idx=uni_idx,
-            uni_count=uni_count,
-            moc=batch.get("moc"),  # default moc is None
-            charge=batch.get("charge"),  # default charge is None
-        )
-
-        if self.config["useCharge"]:
-            charges.unsqueeze_(-1)
-            charges_embed = self.charge_embeddings(charges)
-            graph_embed += charges_embed
-
-        if self.config["lj"]:
             # lj embed
             (
                 lj_embed,  # [B, max_grid_len+1, hid_dim]
@@ -187,7 +184,17 @@ class SpbNet(nn.Module):
                 mask_it=mask_grid,
             )
 
+            lj_embed = lj_embed + self.token_type_embeddings(
+                torch.zeros_like(lj_mask, device=device).long()
+            )
+
         if self.config["coulomb"]:
+            # coulomb = None
+            coulomb = batch["coulomb"]  # [B, H, W, D]
+            coulomb.unsqueeze_(1)  # [B, C, H, W, D]
+
+            device = coulomb.device
+
             # coulomb embed
             (
                 coulomb_embed,  # [B, max_grid_len+1, hid_dim]
@@ -199,37 +206,34 @@ class SpbNet(nn.Module):
                 mask_it=mask_grid,
             )
 
-        # fusion
-        batch_size = len(cifid)
-        if self.config["lj"]:
-            device = lj.device
-        else:
-            device = graph_embed.device
+            coulomb_embed = coulomb_embed + self.token_type_embeddings(
+                torch.ones_like(coulomb_mask, device=device).long()
+            )
 
+        volume = batch["volume"]  # list [B]
+        # grid = (bias + grid_delta).unsqueeze(1)
+
+        # fusion
         # volume embed
         volume = torch.FloatTensor(volume).to(device)  # [B]
         volume_embed = self.volume_embeddings(volume[:, None, None])  # [B, 1, hid_dim]
-        volume_mask = torch.ones(volume.shape[0], 1).to(device)
+        volume_mask = torch.ones(volume.shape[0], 1).to(device=device, dtype=torch.bool)
 
         # cls_embed
         cls_token = torch.zeros(batch_size).to(device)  # [B]
         cls_embed = self.cls_embeddings(cls_token[:, None, None])  # [B, 1, hid_dim]
-        cls_mask = torch.ones(batch_size, 1).to(device)  # [B, 1]
+        cls_mask = torch.ones(batch_size, 1).to(
+            device=device, dtype=torch.bool
+        )  # [B, 1]
 
         # sep_embed
         sep_token = torch.zeros(batch_size).to(device)  # [B]
         sep_embed = self.sep_embeddings(sep_token[:, None, None])  # [B, 1, hid_dim]
-        sep_mask = torch.ones(batch_size, 1).to(device)  # [B, 1]
+        sep_mask = torch.ones(batch_size, 1).to(
+            device=device, dtype=torch.bool
+        )  # [B, 1]
 
         # add token_type_embeddings
-        if self.config["lj"]:
-            lj_embed = lj_embed + self.token_type_embeddings(
-                torch.zeros_like(lj_mask, device=device).long()
-            )
-        if self.config["coulomb"]:
-            coulomb_embed = coulomb_embed + self.token_type_embeddings(
-                torch.ones_like(coulomb_mask, device=device).long()
-            )
 
         # ablation
         if self.config["structure"] and not self.config["potential"]:

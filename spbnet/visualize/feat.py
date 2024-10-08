@@ -45,12 +45,15 @@ class SpbNetTrainer(pl.LightningModule):
         self.pooler.apply(objectives.init_weights)
 
         # void fraction prediction
-        self.vfp_head = RegressionHead(config["hid_dim"])
-        self.vfp_head.apply(objectives.init_weights)
+        if 'vf' in self.config['feat']['save']:
+            self.vfp_head = RegressionHead(config["hid_dim"])
+            self.vfp_head.apply(objectives.init_weights)
 
         # topo classify
-        self.tc_head = ClassificationHead(config["hid_dim"], config["topo_num"])
-        self.tc_head.apply(objectives.init_weights)
+        if "tc" in self.config["feat"]["save"]:
+            assert config.get("topo_num") is not None
+            self.tc_head = ClassificationHead(config["hid_dim"], config["topo_num"])
+            self.tc_head.apply(objectives.init_weights)
 
         # atom grid classify
         self.agc_head = nn.Linear(config["hid_dim"], 1)
@@ -66,9 +69,10 @@ class SpbNetTrainer(pl.LightningModule):
         self.cifids = []
 
         self.cls_contents = []
+        self.tc_contents = []
+        self.vf_contents = []
         self.structure_contents = []
         self.potential_contents = []
-        self.tc_preds = []
         self.attns = []
 
         return super().on_test_epoch_start()
@@ -86,20 +90,28 @@ class SpbNetTrainer(pl.LightningModule):
 
         fconfig = self.config["feat"]
 
-        if 'cls' in fconfig['save']:
+        if 'tc' in fconfig['save']:
             tc_pred = self.tc_head(cls_feat_tensor)  # [B, N_Topos]
             tc_pred = torch.argmax(tc_pred, dim=-1).reshape(-1).detach().cpu().numpy()
-            vfp_pred = self.vfp_head(cls_feat_tensor)  # [B]
+            self.tc_contents.append({
+                "tc_pred": tc_pred
+            })
+        
+        if 'vf' in fconfig['save']:
+            vf_pred = self.vfp_head(cls_feat_tensor).reshape(-1).detach().cpu().numpy()  # [B]
+            self.vf_contents.append({
+                "vf_pred": vf_pred
+            })
 
+        if "cls" in fconfig["save"]:
             cls_content = {
                 "cls_feat": cls_feat,
-                "tc_pred": tc_pred,
-                "vfp_pred": vfp_pred
             }
             self.cls_contents.append(cls_content)
 
         if "structure" in fconfig["save"]:
             sfconfig = fconfig["structure"]
+            structure_content = dict()
 
             structure_feat = (
                 feat["structure_feat"].detach().cpu().numpy()
@@ -108,18 +120,25 @@ class SpbNetTrainer(pl.LightningModule):
                 feat["structure_mask"].detach().cpu().numpy()
             )  # [B, max_graph_len]
             atom_num = feat["atom_num"].detach().cpu().numpy()  # [B, max_graph_len]
-            atom_attn = feat["ca_attn"][:, 0].detach().cpu().numpy()  # [B, max_graph_len]
+            atom_attn = (
+                feat["ca_attn"][:, 0].detach().cpu().numpy()
+            )  # [B, max_graph_len]
 
             structure_feat = structure_feat.reshape(
                 (-1, structure_feat.shape[-1])
             )  # [B * max_graph_len, hid_dim]
-            atom_num = atom_num.reshape(-1)  # [B * max_graph_len]
-            atom_attn = atom_attn.reshape(-1)  # [B * max_graph_len]
-            structure_mask = structure_mask.reshape(-1)  # [B * max_graph_len]
+
+            if sfconfig["feat"]:
+                structure_content["feat"] = structure_feat
 
             # sample
             if sfconfig["sample"]:
+                atom_num = atom_num.reshape(-1)  # [B * max_graph_len]
+                atom_attn = atom_attn.reshape(-1)  # [B * max_graph_len]
+                structure_mask = structure_mask.reshape(-1)  # [B * max_graph_len]
+
                 indices_of_ones = np.where(structure_mask == 0)[0]
+
                 structure_indices = np.random.choice(
                     indices_of_ones,
                     size=sfconfig["sample_num_per_crystal"] * batch_size,
@@ -128,21 +147,21 @@ class SpbNetTrainer(pl.LightningModule):
                 structure_feat = structure_feat[structure_indices]  # [20 * B, hid_dim]
                 atom_num = atom_num[structure_indices]  # [20 * B, hid_dim]
                 atom_attn = atom_attn[structure_indices]  # [20 * B, hid_dim]
-            
-            structure_content = dict()
-            if sfconfig['feat']:
-                structure_content['feat'] = structure_feat
-            if sfconfig['attn']:
-                structure_content['attn'] = atom_attn
-            if sfconfig['atom_num']:
-                structure_content['atom_num'] = atom_num
+                structure_content['atom_num'] = atom_num # [B, max_graph_len]
+                structure_content["attn"] = atom_attn
+            else:
+                # atom_num = atom_num[indices_of_ones]
+                # atom_attn = atom_attn[indices_of_ones]
+                structure_content['atom_num'] = atom_num # [B, max_graph_len]
+                structure_content['atom_mask'] = structure_mask # [B, max_graph_len]
+                structure_content["attn"] = atom_attn
 
             self.structure_contents.append(structure_content)
 
         if "potential" in fconfig["save"]:
             pfconfig = fconfig["potential"]
             patch_size = self.config["patch_size"]["lj"]
-            potential_feat = feat['potential_feat']
+            potential_feat = feat["potential_feat"]
             agc_pred = self.agc_head(potential_feat)
 
             lj = batch["lj"]  # [B, H, W, D]
@@ -159,11 +178,7 @@ class SpbNetTrainer(pl.LightningModule):
             )  # [B, GRID / PatchSize * GRID / PatchSize * GRID / PatchSize]
 
             agc_pred = (
-                agc_pred
-                .detach()
-                .cpu()
-                .numpy()
-                .reshape((batch_size, -1))
+                agc_pred.detach().cpu().numpy().reshape((batch_size, -1))
             )  # [B, 1004]
             potential_feat = potential_feat.detach().cpu().numpy()
             atomgrid = batch["atomgrid"].detach().cpu().numpy()
@@ -179,13 +194,14 @@ class SpbNetTrainer(pl.LightningModule):
             agc_label = np.sum(
                 agc_label, axis=-1
             )  # [B, GRID / PatchSize * GRID / PatchSize * GRID / PatchSize]
-            potential_attn = feat['ca_attn'][:, 0, 2:-2].detach().cpu().numpy() # [B, n_token]
+            potential_attn = (
+                feat["ca_attn"][:, 0, 2:-2].detach().cpu().numpy()
+            )  # [B, n_token]
 
             potential_feat = potential_feat.reshape((-1, potential_feat.shape[-1]))
             agc_pred = agc_pred.reshape(-1)
             agc_label = agc_label.reshape(-1)
             potential_attn = potential_attn.reshape(-1)
-
 
             if pfconfig["sample"]:
                 potential_indices = np.random.randint(
@@ -200,40 +216,35 @@ class SpbNetTrainer(pl.LightningModule):
                 lj = lj[potential_indices]
 
             potential_content = dict()
-            if pfconfig['feat']:
-                potential_content['feat'] = potential_feat
-            if pfconfig['attn']:
-                potential_content['attn'] = potential_attn
-            if pfconfig['agc']:
-                potential_content['agc_label'] = agc_label
-                potential_content['agc_pred'] = agc_pred
-            if pfconfig['value']:
-                potential_content['lj'] = lj
+            if pfconfig["feat"]:
+                potential_content["feat"] = potential_feat
+            if pfconfig["attn"]:
+                potential_content["attn"] = potential_attn
+            if pfconfig["agc"]:
+                potential_content["agc_label"] = agc_label
+                potential_content["agc_pred"] = agc_pred
+            if pfconfig["value"]:
+                potential_content["lj"] = lj
 
             self.potential_contents.append(potential_content)
 
-        if "attn" in fconfig['save']:
+        if "attn" in fconfig["save"]:
             self_attn = feat["sa_attn"].detach().cpu().numpy()  # [B, 1004, 1004]
             cross_attn = (
                 feat["ca_attn"].detach().cpu().numpy()
             )  # [B, 1004, max_graph_len]
 
-            if fconfig['self_attn']['sample']:
+            if fconfig["self_attn"]["sample"]:
                 # attn
-                attn_indices = np.random.randint(0, batch_size, fconfig['self_attn']['sample_num_per_batch'])
+                attn_indices = np.random.randint(
+                    0, batch_size, fconfig["self_attn"]["sample_num_per_batch"]
+                )
                 self_attn = self_attn[attn_indices, 2:-2, 2:-2]  # [S, 1000, 1000]
-                cross_attn = cross_attn[attn_indices, 2:-2] # [S, 1000, max_graph_len]
-        
-            attn_content = {
-                "self_attn": self_attn,
-                "cross_attn": cross_attn
-            }
+                cross_attn = cross_attn[attn_indices, 2:-2]  # [S, 1000, max_graph_len]
+
+            attn_content = {"self_attn": self_attn, "cross_attn": cross_attn}
 
             self.attn_contents.append(attn_content)
-
-        if "tc_pred" in fconfig['save']:
-            self.tc_preds.append(tc_pred)
-
 
     def on_test_epoch_end(self) -> None:
         save_dir = Path(self.config["save_dir"])
@@ -248,23 +259,38 @@ class SpbNetTrainer(pl.LightningModule):
             ret = dict()
             keys = list(contents[0].keys())
             for key in keys:
-                ret[key] = np.concatenate(content[key] for content in contents)
+                ret[key] = np.concatenate([content[key] for content in contents])
             return ret
 
         print(fconfig)
 
-        for feat_name in fconfig['save']:
-            if feat_name == 'cls':
+        # joblib.dump(self.cifids, str(save_dir / 'cifid.joblib'))
+        cifid_df = pd.DataFrame([[cifid] for cifid in self.cifids], columns=['cifid'])
+        cifid_df.to_csv(save_dir / 'cifid.csv', index=False)
+        # with (save_dir / 'cifid.json').open('w') as f:
+        #     json.dump(self.cifids, f)
+        for feat_name in fconfig["save"]:
+            if feat_name == "cls":
                 joblib.dump(
                     collate(self.cls_contents), str(save_dir / f"cls.joblib")
                 )  # [N * 20, hid_dim]
+            if feat_name == "tc":
+                joblib.dump(
+                    collate(self.tc_contents), str(save_dir / f"tc.joblib")
+                )  # [N * 20, hid_dim]
+            if feat_name == "vf":
+                joblib.dump(
+                    collate(self.vf_contents), str(save_dir / f"vf.joblib")
+                )  # [N * 20, hid_dim]
             if feat_name == "potential":
                 joblib.dump(
-                    collate(self.potential_contents), str(save_dir / f"potential.joblib")
+                    collate(self.potential_contents),
+                    str(save_dir / f"potential.joblib"),
                 )  # [N * 20, hid_dim]
             if feat_name == "structure":
                 joblib.dump(
-                    collate(self.structure_contents), str(save_dir / f"potential.joblib")
+                    collate(self.structure_contents),
+                    str(save_dir / f"structure.joblib"),
                 )  # [N * 20, hid_dim]
             if feat_name == "attn":
                 joblib.dump(
@@ -274,19 +300,23 @@ class SpbNetTrainer(pl.LightningModule):
         return super().on_test_epoch_end()
 
 
-def feat(config_path: str):
+def feat(config_path: Path):
+    torch.set_float32_matmul_precision("medium")
+
     title("START TO OBTAIN FEATURES")
 
-    config = yaml.load((cur_dir / "../configs" / "config.model.yaml").open("r"))
-    optimize_config = yaml.load(
+    model_config = yaml.full_load(
+        (cur_dir / "../configs" / "config.model.yaml").open("r")
+    )
+    optimize_config = yaml.full_load(
         (cur_dir / "../configs" / "config.optimize.yaml").open("r")
     )
-    default_train_config = yaml.load(
+    default_train_config = yaml.full_load(
         (cur_dir / "../configs" / "config.feat.yaml").open("r")
     )
 
-    with open(config_path, "r") as f:
-        user_config: dict = yaml.load(f, Loader=yaml.FullLoader)
+    with config_path.open("r") as f:
+        user_config: dict = yaml.full_load(f)
 
     if user_config.get("root_dir") is None:
         err(f"Please specify root directory `root_dir`")
@@ -299,21 +329,18 @@ def feat(config_path: str):
     if user_config.get("log_dir") is None:
         warn(f"Log directory not specified, use default `./lightning_logs/feat`")
 
-    # base_config.update(user_config)
-    config = {**base_config, **user_config}
+    config = {**model_config, **optimize_config, **default_train_config, **user_config}
 
     # check
     device = config["device"]
 
     # handle
     root_dir = Path(config["root_dir"])
-    task = config["task"]
     id_prop = config["id_prop"]
     id_prop_path = root_dir / f"{id_prop}.csv"
     modal_dir = root_dir / config["modal_folder"]
     device = config["device"]
     log_dir = Path(config["log_dir"])
-    load_dir = Path(config["load_dir"])
 
     # split train & val
     df = pd.read_csv(str(id_prop_path))
@@ -322,11 +349,10 @@ def feat(config_path: str):
         df=df,
         modal_dir=modal_dir,
         nbr_fea_len=config["nbr_fea_len"],
-        task_type=task_type,
         useBasis=config["useBasis"],
         useCharge=config["useCharge"],
         img_size=config["img_size"]["lj"],
-        isPredict=True,
+        feat_config=config["feat"],
     )
     loader = DataLoader(
         dataset,
@@ -337,29 +363,27 @@ def feat(config_path: str):
     )
 
     # train
-    checkpoint_callback = ModelCheckpoint(
-        monitor="val_mae" if task_type == "regression" else "val_acc",
-        mode="min" if task_type == "regression" else "max",
-        save_last=True,
-    )
-    lr_monitor = LearningRateMonitor(logging_interval="epoch")
-    logger = TensorBoardLogger(save_dir=(log_dir / task).absolute(), name="")
+    logger = TensorBoardLogger(save_dir=(log_dir).absolute(), name="")
     trainer = pl.Trainer(
         max_epochs=config["epochs"],
         min_epochs=0,
         devices=device,
         accelerator=config["accelerator"],
         strategy=config["strategy"],
-        callbacks=[checkpoint_callback, lr_monitor],
+        callbacks=[],
         accumulate_grad_batches=config["accumulate_grad_batches"],
         precision=config["precision"],
         log_every_n_steps=config["log_every_n_steps"],
         logger=logger,
     )
+
+    ckpt_path = config["ckpt"]
+    ckpt = torch.load(ckpt_path, weights_only=True)
+    hparams = ckpt["hyper_parameters"]["config"]
+    config["topo_num"] = hparams.get("topo_num")
+
     model = SpbNetTrainer(config)
 
-    ckpt_path = config['ckpt']
-    ckpt = torch.load(ckpt_path)
     loadret = model.load_state_dict(ckpt["state_dict"], strict=False)
     print("Load return", loadret)
 
@@ -370,8 +394,10 @@ def feat(config_path: str):
 
 
 @click.command()
-@click.option("--config-path", "-C", type=str)
-def feat_cli(config_path: str):
+@click.option(
+    "--config-path", "-C", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+def feat_cli(config_path: Path):
     feat(config_path)
 
 

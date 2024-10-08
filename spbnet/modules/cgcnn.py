@@ -76,129 +76,6 @@ class ConvLayer(nn.Module):
         return out
 
 
-class CrystalGraphConvNet(nn.Module):
-    """
-    Create a crystal graph convolutional neural network for predicting total
-    material properties.
-    """
-
-    def __init__(
-        self,
-        orig_atom_fea_len,
-        nbr_fea_len,
-        atom_fea_len=64,
-        n_conv=3,
-        h_fea_len=128,
-        max_graph_len=512,
-        n_h=1,
-        drop_ratio=0,
-    ):
-        """
-        Initialize CrystalGraphConvNet.
-        Parameters
-        ----------
-        orig_atom_fea_len: int
-          Number of atom features in the input.
-        nbr_fea_len: int
-          Number of bond features.
-        atom_fea_len: int
-          Number of hidden atom features in the convolutional layers
-        n_conv: int
-          Number of convolutional layers
-        h_fea_len: int
-          Number of hidden features after pooling
-        n_h: int
-          Number of hidden layers after pooling
-        """
-        super(CrystalGraphConvNet, self).__init__()
-
-        self.max_graph_len = max_graph_len
-        self.pad_embedding = nn.Embedding(1, h_fea_len)
-
-        self.drop_ratio = drop_ratio
-        self.embedding = nn.Linear(orig_atom_fea_len, atom_fea_len)
-        self.convs = nn.ModuleList(
-            [
-                ConvLayer(atom_fea_len=atom_fea_len, nbr_fea_len=nbr_fea_len)
-                for _ in range(n_conv)
-            ]
-        )
-
-        self.fc_head = nn.Linear(atom_fea_len, h_fea_len)
-
-    def forward(self, atom_fea, nbr_fea, nbr_fea_idx, crystal_atom_idx):
-        """
-        Forward pass
-        N: Total number of atoms in the batch
-        M: Max number of neighbors
-        N0: Total number of crystals in the batch
-        Parameters
-        ----------
-        atom_fea: Variable(torch.Tensor) shape (N, orig_atom_fea_len)
-          Atom features from atom type
-        nbr_fea: Variable(torch.Tensor) shape (N, M, nbr_fea_len)
-          Bond features of each atom's M neighbors
-        nbr_fea_idx: torch.LongTensor shape (N, M)
-          Indices of M neighbors of each atom
-        crystal_atom_idx: list of torch.LongTensor of length N0
-          Mapping from the crystal idx to atom idx
-        Returns
-        -------
-        prediction: nn.Variable shape (N, )
-          Atom hidden features after convolution
-        """
-        atom_fea = self.embedding(atom_fea)
-        for conv_func in self.convs:
-            atom_fea = conv_func(atom_fea, nbr_fea, nbr_fea_idx)
-        # crys_fea = self.pooling(atom_fea, crystal_atom_idx)
-        # crys_fea = self.conv_to_fc(self.conv_to_fc_softplus(crys_fea))
-        # crys_fea = self.conv_to_fc_softplus(crys_fea)
-
-        return self.fc_head(atom_fea)
-
-    def reconstruct_batch(self, atom_fea: torch.Tensor, crystal_atom_idx: torch.Tensor):
-        """
-        Params:
-            atom_fea: [N0, h_dim]
-            crystal_atom_idx: [N0]
-        Return:
-            atom_fea: [B, max_atom_len, h_dim]
-            atom_fea_mask: [B, max_atom_len]
-        """
-        crystal_num = len(crystal_atom_idx)
-        new_atom_fea = [[] for _ in range(crystal_num)]
-        new_atom_fea_pad_mask = [None for _ in range(crystal_num)]
-        for crystal_idx, atom_idxs in enumerate(crystal_atom_idx):
-            for atom_idx in atom_idxs:
-                new_atom_fea[crystal_idx].append(atom_fea[atom_idx])
-        pad_embed = self.pad_embedding(
-            torch.zeros([1], dtype=torch.long, device=atom_fea.device)
-        ).view(
-            -1
-        )  # [h_fea_len]
-        for crystal_idx, crystal_atom_fea in enumerate(new_atom_fea):
-            if len(crystal_atom_fea) > self.max_graph_len:
-                crystal_atom_fea = crystal_atom_fea[: self.max_graph_len]
-                new_atom_fea[crystal_idx] = torch.stack(crystal_atom_fea).to(atom_fea)
-                new_atom_fea_pad_mask[crystal_idx] = torch.zeros(
-                    [self.max_graph_len]
-                ).to(atom_fea)
-            else:
-                mask = torch.cat(
-                    [
-                        torch.zeros(len(crystal_atom_fea)),
-                        torch.ones(self.max_graph_len - len(crystal_atom_fea)),
-                    ]
-                ).to(atom_fea)
-                new_atom_fea_pad_mask[crystal_idx] = mask
-                while len(crystal_atom_fea) < self.max_graph_len:
-                    crystal_atom_fea.append(pad_embed.clone())
-                new_atom_fea[crystal_idx] = torch.stack(crystal_atom_fea).to(atom_fea)
-        new_atom_fea = torch.stack(new_atom_fea).to(atom_fea)
-        new_atom_fea_pad_mask = torch.stack(new_atom_fea_pad_mask).to(atom_fea)
-        return new_atom_fea, new_atom_fea_pad_mask
-
-
 class GraphEmbeddings(nn.Module):
     """
     Generate Embedding layers made by only convolution layers of CGCNN (not pooling)
@@ -269,26 +146,27 @@ class GraphEmbeddings(nn.Module):
     def reconstruct_batch(self, atom_num, atom_fea, crystal_atom_idx, moc, charge):
         # return new_atom_fea, mask, mo_label
         batch_size = len(crystal_atom_idx)
+        device = atom_fea.device
 
-        new_atom_fea = torch.full(
-            size=[batch_size, self.max_graph_len, self.hid_dim], fill_value=0.0
-        ).to(atom_fea)
-        new_atom_fea_pad_mask = torch.full(
-            size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.int
-        ).to(atom_fea)
-        new_atom_num = torch.full(
-            size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.int
-        ).to(atom_fea)
+        new_atom_fea = torch.zeros(
+            size=[batch_size, self.max_graph_len, self.hid_dim], device=device
+        )
+        new_atom_fea_pad_mask = torch.zeros(
+            size=[batch_size, self.max_graph_len], device=device, dtype=torch.bool
+        )
+        new_atom_num = torch.zeros(
+            size=[batch_size, self.max_graph_len], device=device, dtype=torch.int
+        )
         if moc is not None:
-            mo_labels = torch.full(
-                size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.int
-            ).to(atom_fea)
+            mo_labels = torch.zeros(
+                size=[batch_size, self.max_graph_len], device=device, dtype=torch.int
+            )
         else:
             mo_labels = None
         if charge is not None:
-            charges = torch.full(
-                size=[batch_size, self.max_graph_len], fill_value=0, dtype=torch.float
-            ).to(atom_fea)
+            charges = torch.zeros(
+                size=[batch_size, self.max_graph_len], device=device
+            ).to(device=device)
         else:
             charges = None
         for crystal_idx, atom_idxs in enumerate(crystal_atom_idx):
@@ -300,14 +178,14 @@ class GraphEmbeddings(nn.Module):
                             [self.max_graph_len - len(atom_idxs)], dtype=torch.int
                         ),
                     ]
-                ).to(atom_fea)
+                ).to(device=device, dtype=torch.bool)
                 if moc is not None:
                     mo_labels[crystal_idx, moc[crystal_idx]] = 1
                     mo_labels[crystal_idx, len(atom_idxs) :] = -100
             else:
                 new_atom_fea_pad_mask[crystal_idx] = torch.zeros(
-                    [self.max_graph_len], dtype=torch.int
-                ).to(atom_fea)
+                    [self.max_graph_len], dtype=int
+                ).to(device=device, dtype=torch.bool)
                 if moc is not None:
                     molabel = torch.LongTensor(moc[crystal_idx])  # List[int]
                     molabel = molabel[torch.where(molabel < self.max_graph_len)]

@@ -67,7 +67,7 @@ def mol2json(cifid: str, root_dir: Path):
 
 @click.command()
 @click.option(
-    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, type=Path)
+    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--cif-folder", "-C", type=str, default="cif")
 @click.option("--n-process", "-N", type=int, default=8)

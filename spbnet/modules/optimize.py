@@ -11,7 +11,7 @@ from transformers import (
 
 
 def set_scheduler(pl_module):
-    optim_config = pl_module.optimizer_config
+    optim_config = pl_module.config
     lr = optim_config["lr"]
     wd = optim_config["weight_decay"]
 

@@ -57,7 +57,7 @@ def calcAtomNum(root_dir: Path, num: int = 500, vis=False):
 
 @click.command()
 @click.option(
-    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, type=Path)
+    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--num", type=int, default=500)
 @click.option("--vis/--no-vis", default=False)

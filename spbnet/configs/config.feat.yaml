@@ -25,16 +25,6 @@ feat:
     value: true
     agc: true
 
-# feats: [
-#     # "potential",
-#     # 'structure',
-#     # "agc_pred",
-#     # "agc_label",
-#     "cls_feat",
-#     # "tc_pred",
-#     # 'self_attn',
-#   ]
-
 # hmof
 root_dir: ~
 modal_folder: "."
@@ -43,7 +33,7 @@ log_dir: ./lightning_logs/feat
 save_dir: ./vis/feat
 device: [0]
 
-batch_size: 8
+batch_size: 16
 accumulate_grad_batches: 4
 
 accelerator: gpu
@@ -52,6 +42,7 @@ precision: 16-mixed
 log_every_n_steps: 10
 
 # MODEL
+visualize: true
 
 # OPTIMIZER
 warmup_steps: 0.05

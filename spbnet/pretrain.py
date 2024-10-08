@@ -16,7 +16,8 @@ from einops import rearrange
 from sklearn.model_selection import train_test_split
 from pathlib import Path
 
-from torchmetrics import Accuracy
+from torchmetrics.classification import MulticlassAccuracy
+from torchmetrics.regression import R2Score, PearsonCorrCoef
 
 from .datamodule.dataset import PretrainDataset as Dataset
 from .modules.module import SpbNet
@@ -61,7 +62,9 @@ class SpbNetTrainer(pl.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
         self.cross_entropy = nn.CrossEntropyLoss()
-        self.acc = Accuracy()
+        self.acc = MulticlassAccuracy(num_classes=config["topo_num"])
+        self.r2score = R2Score()
+        self.pearsonr = PearsonCorrCoef()
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:
         # lr log
@@ -75,6 +78,9 @@ class SpbNetTrainer(pl.LightningModule):
         topo = batch["topo"]  # [B] int
         atomgrid = batch["atomgrid"]  # [B, GRID, GRID, GRID] aka [B, 30, 30, 30]
 
+        batch_size = vf.shape[0]
+        device = vf.device
+
         feat = self.model(batch)
 
         cls_feat = feat["cls_feat"]
@@ -82,20 +88,24 @@ class SpbNetTrainer(pl.LightningModule):
 
         # vfp
         vfp = self.vfp_head(cls_feat)  # [batch_size, 1]
-        vfp = vfp.reshape(vfp.shape[0])  # [batch_size]
-        vf = vf.reshape(vf.shape[0])  # [batch_size]
+        vfp = vfp.reshape(batch_size)  # [batch_size]
+        vf = vf.reshape(batch_size)  # [batch_size]
         vfp_mse = self.mse_loss(vfp, vf)
         vfp_mae = self.mae_loss(vfp, vf)
-        self.log("train_vfp_mse", vfp_mse, batch_size=vf.shape[0], sync_dist=True)
-        self.log("train_vfp_mae", vfp_mae, batch_size=vf.shape[0], sync_dist=True)
+        vfp_r2 = self.r2score(vf, vfp)
+        vfp_p = self.pearsonr(vf, vfp)
+        self.log("train_vfp_mse", vfp_mse, batch_size=batch_size, sync_dist=True)
+        self.log("train_vfp_mae", vfp_mae, batch_size=batch_size, sync_dist=True)
+        self.log("train_vfp_r2", vfp_r2, batch_size=batch_size, sync_dist=True)
+        self.log("train_vfp_p", vfp_p, batch_size=batch_size, sync_dist=True)
 
         # tc
         topo_pred = self.tc_head(cls_feat)  # [batch_size, topo_num]
-        topo = topo.reshape(vf.shape[0])  # [batch_size]
+        topo = topo.reshape(batch_size)  # [batch_size]
         tc_loss = self.cross_entropy(topo_pred, topo)
-        tc_acc = self.acc(topo, topo_pred)
-        self.log("train_tc_loss", tc_loss, batch_size=topo.shape[0], sync_dist=True)
-        self.log("train_tc_acc", tc_acc, batch_size=topo.shape[0], sync_dist=True)
+        tc_acc = self.acc(topo_pred, topo)
+        self.log("train_tc_loss", tc_loss, batch_size=batch_size, sync_dist=True)
+        self.log("train_tc_acc", tc_acc, batch_size=batch_size, sync_dist=True)
 
         # atom grid
         potential_feat = feat[
@@ -116,14 +126,16 @@ class SpbNetTrainer(pl.LightningModule):
         agc_label = agc_label.sum(
             -1, keepdim=True
         )  # [B, GRID / PatchSize, GRID / PatchSize, GRID / PatchSize, 1]
+        agc_label = agc_label.reshape(-1)
+        agc_pred = agc_pred.reshape(-1)
         agc_mse = self.mse_loss(agc_label, agc_pred)
         agc_mae = self.mae_loss(agc_label, agc_pred)
-        self.log(
-            "train_agc_mse", agc_mse, batch_size=agc_label.shape[0], sync_dist=True
-        )
-        self.log(
-            "train_agc_mae", agc_mae, batch_size=agc_label.shape[0], sync_dist=True
-        )
+        agc_r2 = self.r2score(agc_label, agc_pred)
+        agc_p = self.pearsonr(agc_label, agc_pred)
+        self.log("train_agc_mse", agc_mse, batch_size=batch_size, sync_dist=True)
+        self.log("train_agc_mae", agc_mae, batch_size=batch_size, sync_dist=True)
+        self.log("train_agc_r2", agc_r2, batch_size=batch_size, sync_dist=True)
+        self.log("train_agc_p", agc_p, batch_size=batch_size, sync_dist=True)
 
         if self.config["useMoc"]:
             mo_labels = feat["mo_labels"].reshape(-1)  # [B, max_graph_len]
@@ -143,12 +155,10 @@ class SpbNetTrainer(pl.LightningModule):
             self.log(
                 "train_moc_loss",
                 moc_loss,
-                batch_size=agc_label.shape[0],
+                batch_size=batch_size,
                 sync_dist=True,
             )
-            self.log(
-                "train_moc_acc", acc, batch_size=agc_label.shape[0], sync_dist=True
-            )
+            self.log("train_moc_acc", acc, batch_size=batch_size, sync_dist=True)
 
         loss = (
             self.config["vfp"] * vfp_mse
@@ -166,6 +176,9 @@ class SpbNetTrainer(pl.LightningModule):
         topo = batch["topo"]  # [B] int
         atomgrid = batch["atomgrid"]  # [B, GRID, GRID, GRID] aka [B, 30, 30, 30]
 
+        batch_size = vf.shape[0]
+        device = vf.device
+
         feat = self.model(batch)
 
         cls_feat = feat["cls_feat"]
@@ -173,21 +186,24 @@ class SpbNetTrainer(pl.LightningModule):
 
         # vfp
         vfp = self.vfp_head(cls_feat)  # [batch_size, 1]
-        vfp = vfp.reshape(vfp.shape[0])  # [batch_size]
-        vf = vf.reshape(vf.shape[0])  # [batch_size]
+        vfp = vfp.reshape(batch_size)  # [batch_size]
+        vf = vf.reshape(batch_size)  # [batch_size]
         vfp_mse = self.mse_loss(vfp, vf)
         vfp_mae = self.mae_loss(vfp, vf)
-        self.log("val_vfp_mse", vfp_mse, batch_size=vf.shape[0], sync_dist=True)
-        self.log("val_vfp_mae", vfp_mae, batch_size=vf.shape[0], sync_dist=True)
+        vfp_r2 = self.r2score(vf, vfp)
+        vfp_p = self.pearsonr(vf, vfp)
+        self.log("val_vfp_mse", vfp_mse, batch_size=batch_size, sync_dist=True)
+        self.log("val_vfp_mae", vfp_mae, batch_size=batch_size, sync_dist=True)
+        self.log("val_vfp_r2", vfp_r2, batch_size=batch_size, sync_dist=True)
+        self.log("val_vfp_p", vfp_p, batch_size=batch_size, sync_dist=True)
 
         # tc
         topo_pred = self.tc_head(cls_feat)  # [batch_size, topo_num]
-        topo = topo.reshape(vf.shape[0])  # [batch_size]
+        topo = topo.reshape(batch_size)  # [batch_size]
         tc_loss = self.cross_entropy(topo_pred, topo)
-        # tc_loss = self.focal_loss(topo_pred, topo)
-        tc_acc = self.cal_acc(topo, topo_pred)
-        self.log("val_tc_loss", tc_loss, batch_size=topo.shape[0], sync_dist=True)
-        self.log("val_tc_acc", tc_acc, batch_size=topo.shape[0], sync_dist=True)
+        tc_acc = self.acc(topo_pred, topo)
+        self.log("val_tc_loss", tc_loss, batch_size=batch_size, sync_dist=True)
+        self.log("val_tc_acc", tc_acc, batch_size=batch_size, sync_dist=True)
 
         # atom grid classify
         potential_feat = feat[
@@ -207,10 +223,16 @@ class SpbNetTrainer(pl.LightningModule):
         agc_label = agc_label.sum(
             -1, keepdim=True
         )  # [B, GRID / PatchSize, GRID / PatchSize, GRID / PatchSize, 1]
+        agc_label = agc_label.reshape(-1)
+        agc_pred = agc_pred.reshape(-1)
         agc_mse = self.mse_loss(agc_label, agc_pred)
         agc_mae = self.mae_loss(agc_label, agc_pred)
-        self.log("val_agc_mse", agc_mse, batch_size=agc_label.shape[0], sync_dist=True)
-        self.log("val_agc_mae", agc_mae, batch_size=agc_label.shape[0], sync_dist=True)
+        agc_r2 = self.r2score(agc_label, agc_pred)
+        agc_p = self.pearsonr(agc_label, agc_pred)
+        self.log("val_agc_mse", agc_mse, batch_size=batch_size, sync_dist=True)
+        self.log("val_agc_mae", agc_mae, batch_size=batch_size, sync_dist=True)
+        self.log("val_agc_r2", agc_r2, batch_size=batch_size, sync_dist=True)
+        self.log("val_agc_p", agc_p, batch_size=batch_size, sync_dist=True)
 
         if self.config["useMoc"]:
             mo_labels = feat["mo_labels"].reshape(-1)  # [B, max_graph_len]
@@ -227,16 +249,16 @@ class SpbNetTrainer(pl.LightningModule):
             moc_pred = torch.where(moc_pred > 0.5, 1, 0)
             score = torch.where(moc_pred == mo_labels, 1.0, 0.0)
             acc = torch.mean(score)
-            self.log(
-                "val_moc_loss", moc_loss, batch_size=agc_label.shape[0], sync_dist=True
-            )
-            self.log("val_moc_acc", acc, batch_size=agc_label.shape[0], sync_dist=True)
+            self.log("val_moc_loss", moc_loss, batch_size=batch_size, sync_dist=True)
+            self.log("val_moc_acc", acc, batch_size=batch_size, sync_dist=True)
 
     def configure_optimizers(self) -> Any:
         return set_scheduler(self)
 
 
 def pretrain(config_path: Path):
+    torch.set_float32_matmul_precision("medium")
+
     config = yaml.full_load((cur_dir / "configs" / "config.model.yaml").open("r"))
     optimize_config = yaml.full_load(
         (cur_dir / "configs" / "config.optimize.yaml").open("r")
@@ -247,7 +269,7 @@ def pretrain(config_path: Path):
 
     base_config = {**config, **optimize_config, **default_train_config}
 
-    with open(config_path.absolute(), "r") as f:
+    with config_path.open("r") as f:
         user_config = yaml.full_load(f)
 
     if user_config.get("root_dir") is None:
@@ -266,7 +288,7 @@ def pretrain(config_path: Path):
     title("START TO PRETRAIN")
 
     root_dir = Path(config["root_dir"])
-    id_prop_path = root_dir / config["id_prop"]
+    id_prop_path = root_dir / f"{config['id_prop']}.csv"
     id_prop_dir = id_prop_path.parent
     df = pd.read_csv(id_prop_path)
     splits = ["train", "val"]
@@ -285,6 +307,7 @@ def pretrain(config_path: Path):
         }
         train_df = dfs["train"]
         val_df = dfs["val"]
+        dfs["all"] = pd.concat([train_df, val_df])
     else:
         train_df, val_df = train_test_split(df, test_size=0.05, random_state=42)
         print(
@@ -298,7 +321,7 @@ def pretrain(config_path: Path):
 
     # to get total number of topology
     datasets = {
-        Dataset(
+        split: Dataset(
             df=dfs[split],
             modal_dir=modal_dir,
             nbr_fea_len=config["nbr_fea_len"],
@@ -311,16 +334,16 @@ def pretrain(config_path: Path):
             ["all"] + splits
         )  # order is important, because we need to include all topos in `topo2tid.json`
     }
-    config["topo_num"] = dfs["all"].get_topo_num()
+    config["topo_num"] = datasets["all"].get_topo_num()
     loaders = {
         split: DataLoader(
             datasets[split],
             batch_size=config["batch_size"],
             shuffle=split == "train",
             num_workers=8,
-            collate_fn=datasets[split].collate,
+            collate_fn=datasets[split].collate_fn,
         )
-        for splits in splits
+        for split in splits
     }
 
     checkpoint_callback = ModelCheckpoint(
@@ -339,6 +362,7 @@ def pretrain(config_path: Path):
         precision=config["precision"],
         log_every_n_steps=config["log_every_n_steps"],
         logger=logger,
+        limit_train_batches=config["limit_train_batches"],
     )
     model = SpbNetTrainer(config)
     trainer.fit(
@@ -351,7 +375,7 @@ def pretrain(config_path: Path):
 
 @click.command()
 @click.option(
-    "--config-path", "-C", type=click.Path(exists=True, dir_okay=False, type=Path)
+    "--config-path", "-C", type=click.Path(exists=True, dir_okay=False, path_type=Path)
 )
 def pretrain_cli(config_path: Path):
     pretrain(config_path)

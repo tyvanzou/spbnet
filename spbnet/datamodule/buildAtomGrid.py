@@ -101,7 +101,7 @@ def buildAtomGrid(
 
 @click.command()
 @click.option(
-    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, type=Path)
+    "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--cif-folder", "-C", type=str, default="cif")
 @click.option("--moda-folder", "-T", type=str, default="spbnet")

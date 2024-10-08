@@ -50,7 +50,7 @@ def float2int8(dataset_dir: Path, n_process: int):
 
 @click.command()
 @click.option(
-    "--modal-dir", "-M", type=click.Path(exists=True, file_okay=False, type=Path)
+    "--modal-dir", "-M", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--n-process", "-N", type=int, default=8)
 def float2int8Cli(modal_dir: Path, n_process: int):

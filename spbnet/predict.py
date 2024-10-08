@@ -98,9 +98,7 @@ class SpbNetTrainer(pl.LightningModule):
                 self.test_items.append([cifid_i, pred_i])
 
     def on_test_epoch_end(self) -> None:
-        self.test_df = pd.DataFrame(
-            self.test_items, columns=["cifid", "predict"]
-        )
+        self.test_df = pd.DataFrame(self.test_items, columns=["cifid", "predict"])
         self.test_df.to_csv(
             (Path(self.logger.log_dir) / "test_result.csv"),
             index=False,
@@ -111,8 +109,8 @@ class SpbNetTrainer(pl.LightningModule):
         return set_scheduler(self)
 
 
-def predict(config_path: str):
-    torch.set_float32_matmul_precision('medium')
+def predict(config_path: Path):
+    torch.set_float32_matmul_precision("medium")
 
     model_config = yaml.full_load((cur_dir / "configs" / "config.model.yaml").open("r"))
     optimize_config = yaml.full_load(
@@ -122,7 +120,7 @@ def predict(config_path: str):
         (cur_dir / "configs" / "config.finetune.yaml").open("r")
     )
 
-    with open(config_path, "r") as f:
+    with config_path.open("r") as f:
         user_config: dict = yaml.full_load(f)
 
     if user_config.get("root_dir") is None:
@@ -152,9 +150,9 @@ def predict(config_path: str):
     device = config["device"]
     log_dir = Path(config["log_dir"])
 
-    ckpt_path = Path(config['ckpt'])
+    ckpt_path = Path(config["ckpt"])
     ckpt = torch.load(ckpt_path, weights_only=True)
-    hparams = ckpt['hyper_parameters']['config']
+    hparams = ckpt["hyper_parameters"]["config"]
 
     # id_prop
     task_type = hparams["task_type"]
@@ -184,8 +182,8 @@ def predict(config_path: str):
     # regression
     if task_type == "regression":
         # mean & std
-        config["mean"] = hparams['mean']
-        config["std"] = hparams['std']
+        config["mean"] = hparams["mean"]
+        config["std"] = hparams["std"]
     elif task_type == "classification":
         config["cls_num"] = hparams["cls_num"]
         config["cls_id_map"] = hparams["cls_id_map"]
@@ -223,8 +221,10 @@ def predict(config_path: str):
 
 
 @click.command()
-@click.option("--config-path", type=str)
-def predict_cli(config_path: str):
+@click.option(
+    "--config-path", "-C", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+def predict_cli(config_path: Path):
     predict(config_path)
 
 
