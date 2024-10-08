@@ -17,6 +17,7 @@
 /demo
 **/data
 **/ckpt
+**/weights
 
 # logs
 **/*_logs

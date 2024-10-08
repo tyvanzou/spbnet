@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 import yaml
 import joblib
+import pandas as pd
 
 with open("./config.yaml", "r") as f:
     config = yaml.full_load(f)
@@ -22,6 +23,6 @@ for split in splits:
     custom_datas[split]["target"] = dfs[split][config["target"]]
 
 clf = MolTrain(
-    task="regression", metrics="mae", use_cuda=True, save_path=config["log_dir"]
+    task="regression", metrics="mae", use_cuda=True, save_path=config["log_dir"], batch_size=config['batch_size'], epochs=config['epochs'], early_stopping=config['early_stopping'], kfold=config['kfold']
 )
 clf.fit(custom_datas["train"])

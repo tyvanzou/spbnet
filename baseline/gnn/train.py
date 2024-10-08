@@ -65,30 +65,32 @@ class GNNTrainer(pl.LightningModule):
         self.log("lr", lr_avg)
 
         pred = self.forward(batch)
-
         label = batch["target"]
-        label_norm = (label - self.mean) / self.std
         batch_size = label.shape[0]
+        label = label.reshape(batch_size)
+        pred = pred.reshape(batch_size)
+
+        label_norm = (label - self.mean) / self.std
         mse = self.mse_loss(label_norm, pred)
         mae = self.mae_loss(label_norm, pred)
         pred_denorm = pred * self.std + self.mean
-        r2 = self.r2_score(label, pred_denorm)
 
         log(
-            self, target=label, preds=pred_denorm, prefix="train", batch_size=batch_size
+            self, target=label, pred=pred_denorm, prefix="train", batch_size=batch_size
         )
 
         return mse
 
     def validation_step(self, batch, batch_idx):
         pred = self.forward(batch)
-
         label = batch["target"]
         batch_size = label.shape[0]
+        label = label.reshape(batch_size)
+        pred = pred.reshape(batch_size)
         # print(pred, self.mean, self.std)
         pred_denorm = pred * self.std + self.mean
 
-        log(self, target=label, preds=pred_denorm, prefix="val", batch_size=batch_size)
+        log(self, target=label, pred=pred_denorm, prefix="val", batch_size=batch_size)
 
     def on_test_epoch_start(self):
         self.test_items = []
@@ -100,6 +102,8 @@ class GNNTrainer(pl.LightningModule):
         label = batch["target"]
         batch_size = label.shape[0]
         pred_denorm = pred * self.std + self.mean
+        label = label.reshape(batch_size)
+        pred = pred.reshape(batch_size)
 
         cifid = batch["cifids"]
         assert len(cifid) == batch["target"].shape[0]
@@ -114,7 +118,7 @@ class GNNTrainer(pl.LightningModule):
         pred = torch.tensor(self.test_df["predict"])
         target = torch.tensor(self.test_df["target"])
 
-        log(self, target=label, preds=pred_denorm, prefix="test", batch_size=batch_size)
+        log(self, target=label, pred=pred_denorm, prefix="test", batch_size=batch_size)
 
         self.test_df.to_csv(
             (Path(self.logger.log_dir) / "test_result.csv"),
@@ -135,10 +139,10 @@ class GNNTrainer(pl.LightningModule):
 
 def main():
     with open("./config.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+        config = yaml.full_load(f)
 
     log_dir = Path(config["log_dir"])
-    task = config["target"]
+    task = config["task"]
     logger = TensorBoardLogger(save_dir=(log_dir / task).absolute(), name="")
     checkpoint_callback = ModelCheckpoint(
         monitor="val_mae",
@@ -157,11 +161,11 @@ def main():
     )
 
     root_dir = Path(config["root_dir"])
-    id_prop_path = root_dir / f"{config["id_prop"]}.csv"
+    id_prop_path = root_dir / f"{config['id_prop']}.csv"
 
     df = pd.read_csv(id_prop_path)
-    df = df.dropna(subset=[config["target"]])
-    targets = df[config["target"]]
+    df = df.dropna(subset=[config["task"]])
+    targets = df[config["task"]]
     mean, std = targets.mean(), targets.std()
     config["mean"] = float(mean)
     config["std"] = float(std)
@@ -182,7 +186,7 @@ def main():
             for split in splits
         }
     else:
-        df = pd.read_csv(config["id_prop"])
+        df = pd.read_csv(id_prop_path)
         train_df, val_df = train_test_split(df, test_size=1 / 7, random_state=42)
         train_df, test_df = train_test_split(train_df, test_size=1 / 6, random_state=42)
         train_df.to_csv(id_prop_dir / f"{id_prop_path.stem}.train.csv", index=False)
@@ -190,7 +194,7 @@ def main():
         test_df.to_csv(id_prop_dir / f"{id_prop_path.stem}.test.csv", index=False)
         dfs = {"train": train_df, "val": val_df, "test": test_df}
     datasets = {
-        split: CifGraphDataset(root_dir, dfs[split], target=config["target"])
+        split: CifGraphDataset(root_dir, dfs[split], target=config["task"])
         for split in splits
     }
     loaders = {

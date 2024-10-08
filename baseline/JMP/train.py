@@ -9,14 +9,15 @@ LICENSE file in the root directory of this source tree.
 from pathlib import Path
 
 from jmp.configs.finetune.jmp_l import jmp_l_ft_config_
-# from jmp.configs.finetune.qmof import jmp_l_qmof_config_
-from jmp.configs.finetune.coremof import jmp_l_qmof_config_
+from jmp.configs.finetune.qmof import jmp_l_qmof_config_
+# from jmp.configs.finetune.coremof import jmp_l_qmof_config_
 from jmp.tasks.finetune.base import FinetuneConfigBase, FinetuneModelBase
-# from jmp.tasks.finetune.qmof import QMOFConfig, QMOFModel
-from jmp.tasks.finetune.coremof import QMOFConfig, QMOFModel
+from jmp.tasks.finetune.qmof import QMOFConfig, QMOFModel
+# from jmp.tasks.finetune.coremof import QMOFConfig, QMOFModel
 
 ckpt_path = Path("./ckpt/jmp-l.pt")
-base_path = Path("./data/coremof")
+base_path = Path("./data/qmof")
+# base_path = Path("./data/coremof")
 
 # We create a list of all configurations that we want to run.
 configs: list[tuple[FinetuneConfigBase, type[FinetuneModelBase]]] = []
@@ -55,7 +56,7 @@ def run(config: FinetuneConfigBase, model_cls: type[FinetuneModelBase]) -> None:
     backbone = filter_state_dict(state_dict, "backbone.")
     model.load_backbone_state_dict(backbone=backbone, embedding=embedding, strict=True)
 
-    trainer = Trainer(config, max_epochs=300, min_epochs=0, devices=[0, 1, 2, 3, 4, 5, 6, 7])
+    trainer = Trainer(config, max_epochs=300, min_epochs=0, devices=[0, 1, 2, 3])
     trainer.fit(model)
 
 

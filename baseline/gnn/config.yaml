@@ -1,32 +1,33 @@
 # # dataset
 
-# root_dir: ../../data/benchmark/bandgap
-# id_prop: benchmark.csv
-# target: bandgap
-# ckpt: scratch
-# log_dir: "./lightning_logs/spherenet/bandgap"
-# # devices: [0]
-# devices: [1]
-# # devices: [4, 5, 6, 7]
-
-root_dir: ../../data/benchmark/coremof
+root_dir: ../../data/benchmark/bandgap
 id_prop: benchmark
-target: N2-77-100000
+task: bandgap
 ckpt: scratch
-log_dir: ./lightning_logs/spherenet/coremof
-devices: [0, 2, 3]
+log_dir: ./lightning_logs/spherenet/bandgap
+devices: [1]
+# devices: [4, 5, 6, 7]
+
+# root_dir: ../../data/benchmark/coremof
+# id_prop: benchmark
+# task: N2-77-100000
+# ckpt: scratch
+# log_dir: ./lightning_logs/spherenet/coremof
+# devices: [0, 2, 3]
 
 # root_dir: ../../data/benchmark/tsd
 # id_prop: benchmark.csv
-# target: tsd
+# task: tsd
 # ckpt: scratch
 # log_dir: "./lightning_logs/visnet/tsd"
 # devices: [0, 1, 2, 3]
 
+# model
+gnn: spherenet
 
 # optimize
 num_epochs: 300
-batch_size: 1
+batch_size: 8
 accumulate_grad_batches: 16
 optim_type: adamw
 lr: 0.0001
@@ -41,29 +42,30 @@ accelerator: gpu
 precision: 16-mixed
 strategy: ddp
 
-# model
-gnn: spherenet
-
 radius_graph_smof: &radius_graph_smof
-  # for qmof and hmof
+  # for qmof and hmof, this setting if following JMP
+  # JMP: max_num_neighbors=10 when num_atoms > 200 and max_num_neighbors=30 where num_atoms < 200
+  # for simplicity, we use (10 + 30) / 2 = 20
   cutoff: 19.0
-  max_num_neighbors: 32
+  max_num_neighbors: 20
 
 radius_graph_lmof: &radius_graph_lmof
   # for CoREMOF
-  cutoff: 12.0
-  max_num_neighbors: 16
+  # MOFs in CoREMOF dataset is significantly larger than qmof, thus small max_num_neighbors
+  # CGCNN in SpbNet use cutoff=8, max_num_neighbors=12. Use the same here
+  cutoff: 8.0
+  max_num_neighbors: 12
 
-radius_graph:
-  <<: *radius_graph_lmof
+radius_graph: &radius_graph
+  <<: *radius_graph_smof
 
 # visnet
 visnet:
   <<: *radius_graph
 
   # qmof, hmof
-  hidden_channels: 512
-  num_rbf: 64
+  hidden_channels: 512 # default 512
+  num_rbf: 64 # default 64
 
   # # coremof
   # hidden_channels: 128
@@ -102,8 +104,8 @@ spherenet:
   <<: *radius_graph
 
   num_layers: 6 # default 4
-  hidden_channels: 256 # default 128
-  int_emb_size: 64 # defualt 64
+  hidden_channels: 512 # default 128
+  int_emb_size: 256 # defualt 64
 
   # default settings
   out_channels: 1

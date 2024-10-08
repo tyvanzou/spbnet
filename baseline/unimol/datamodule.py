@@ -12,7 +12,7 @@ from tqdm import tqdm
 import numpy as np
 
 
-def main(root_dir, df):
+def main():
     config = yaml.full_load(open("./config.yaml", "r"))
 
     root_dir = Path(config["root_dir"])
