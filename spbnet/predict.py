@@ -151,12 +151,17 @@ def predict(config_path: Path):
     log_dir = Path(config["log_dir"])
 
     ckpt_path = Path(config["ckpt"])
-    ckpt = torch.load(ckpt_path, weights_only=True)
+    ckpt = torch.load(ckpt_path, weights_only=False)
     hparams = ckpt["hyper_parameters"]["config"]
 
     # id_prop
-    task_type = hparams["task_type"]
-    config["task_type"] = task_type
+    if hparams.get("task_type") is not None:
+        task_type = hparams["task_type"]
+        config["task_type"] = task_type
+    else:
+        # for old version
+        task_type = 'regression'
+        config['task_type'] = 'regression'
 
     # split train & val
     df = pd.read_csv(str(id_prop_path))

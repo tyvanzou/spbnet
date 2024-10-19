@@ -65,8 +65,8 @@ def buildModal(
             except Exception as e:
                 err(f"Error when processing {cifpath.stem}: {e}")
 
-    cif_dir = root_dir / cif_dir
-    modal_dir = root_dir / modal_dir
+    cif_dir = root_dir / cif_folder
+    modal_dir = root_dir / modal_folder
     modal_dir.mkdir(exist_ok=True)
 
     cif_paths = list(cif_dir.iterdir())
@@ -109,7 +109,7 @@ def buildModal(
     "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--cif-folder", type=str, default="cif")
-@click.option("--modal-folder", type=str, default="spbnet")
+@click.option("--modal-folder", type=str, default=".")
 @click.option("--n-process", type=int, default=1)
 @click.option("--crystal-max-length", type=float, default=120)
 @click.option("--max-num-unique-atoms", type=float, default=512)

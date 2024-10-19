@@ -1,21 +1,23 @@
 epoch: 200
-# device: [0, 1, 2, 3, 4, 5, 6, 7]
-device: [0]
+device: [0, 1, 2, 3, 4, 5, 6, 7]
+# device: [0]
 batch_size: 128
 
 accumulate_grad_batches: 1
 precision: "16-mixed"
 log_every_n_steps: 5
-log_dir: "./lightning_logs/tmp"
+log_dir: "./lightning_logs/grad/pretrain"
 
-limit_train_batches: 50
+limit_train_batches: ~
 
-# id_prop: "./data/18wmof/vftopo.filter.moc.18w.csv"
-# root_dir: /localData/user081901/data/spbnet/porous
-root_dir: /localData/user081901/data/spbnet/18wmof
-modal_folder: "../porous"
-# id_prop: vftopo.porous.filter
-id_prop: vftopo.filter.moc.18w
+# # id_prop: "./data/18wmof/vftopo.filter.moc.18w.csv"
+# # root_dir: /localData/user081901/data/spbnet/porous
+# root_dir: /localData/user081901/data/spbnet/18wmof
+# modal_folder: "."
+# # id_prop: vftopo.porous.filter
+# id_prop: vftopo.filter.18w
+
+# test
 
 # model:
 structure: true
@@ -24,10 +26,11 @@ coulomb: false
 
 useBasis: true
 useCharge: false
+useGrad: true
 
 vfp: 1
 tc: 1
-agc: 2
+agc: 1
 
-useMoc: true
+useMoc: false
 moc: 2

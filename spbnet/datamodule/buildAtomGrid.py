@@ -47,10 +47,10 @@ def buildAtomGridi(cif_path: Path, tgt_dir: Path):
     np.save((tgt_dir / "atomgrid" / f"{cif_path.stem}").absolute(), array)
 
 
-def process_multi_cif(cif_paths, moda_dir: Path):
+def process_multi_cif(cif_paths, modal_dir: Path):
     for cif_path in tqdm(cif_paths):
         try:
-            buildAtomGridi(cif_path, moda_dir)
+            buildAtomGridi(cif_path, modal_dir)
         except Exception as e:
             err(f"Error when processing {cif_path.stem}: {e}")
 
@@ -58,7 +58,7 @@ def process_multi_cif(cif_paths, moda_dir: Path):
 def buildAtomGrid(
     root_dir: Path,
     cif_folder: str = "cif",
-    moda_folder: str = "spbnet",
+    modal_folder: str = ".",
     n_process: int = 1,
     grid: int = 30
 ):
@@ -86,14 +86,12 @@ def buildAtomGrid(
     processes = []
     for i in range(process_num):
         cif_paths_i = cif_paths[i * cif_num_per_process : (i + 1) * cif_num_per_process]
-        process = Process(target=process_multi_cif, args=(cif_paths_i, moda_dir))
+        process = Process(target=process_multi_cif, args=(cif_paths_i, modal_dir))
         process.start()
         processes.append(process)
     for process in processes:
         process.join()
 
-    # for cif_path in tqdm(list(moda_dir.iterdir())):
-    #     buildAtomGridi(cif_path, moda_dir)
     title("building atom grid")
 
     return
@@ -104,13 +102,13 @@ def buildAtomGrid(
     "--root-dir", "-R", type=click.Path(exists=True, file_okay=False, path_type=Path)
 )
 @click.option("--cif-folder", "-C", type=str, default="cif")
-@click.option("--moda-folder", "-T", type=str, default="spbnet")
+@click.option("--modal-folder", "-T", type=str, default=".")
 @click.option("--n-process", "-N", type=int, default=1)
 @click.option("--grid", "-G", type=int, default=30)
 def buildAtomGridCli(
-    root_dir: Path, cif_folder: str, moda_folder: str, n_process: int, grid: int
+    root_dir: Path, cif_folder: str, modal_folder: str, n_process: int, grid: int
 ):
-    buildAtomGrid(root_dir, cif_folder, moda_folder, n_process, grid)
+    buildAtomGrid(root_dir, cif_folder, modal_folder, n_process, grid)
 
 
 if __name__ == "__main__":

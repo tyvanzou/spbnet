@@ -149,10 +149,12 @@ class GraphEmbeddings(nn.Module):
         device = atom_fea.device
 
         new_atom_fea = torch.zeros(
-            size=[batch_size, self.max_graph_len, self.hid_dim], device=device
+            size=[batch_size, self.max_graph_len, self.hid_dim], device=device, dtype=torch.float
         )
+        # NOTE: It seems that dtype of src_key_padding_mask (float and bool) will result in a little different output.
+        # For reproducing all the result demonstrated in our paper, we maintain the dtype of float (instead of bool)
         new_atom_fea_pad_mask = torch.zeros(
-            size=[batch_size, self.max_graph_len], device=device, dtype=torch.bool
+            size=[batch_size, self.max_graph_len], device=device, dtype=torch.float
         )
         new_atom_num = torch.zeros(
             size=[batch_size, self.max_graph_len], device=device, dtype=torch.int

@@ -33,9 +33,12 @@ from jmp.utils.param_specific_util import make_parameter_specific_optimizer_conf
 
 FinetuneConfigBase.set_seed(42)
 
+BackboneSize = "large"
+
+assert BackboneSize == "small" or BackboneSize == "large"
+
 BASE_DATASET_PATH = Path("./data")
-SCALE_FILE_PATH = Path("/path/to/gemnet/scale_files/large.pt")
-PRETRAINED_CKPT_PATH = Path("./ckpt/jmp-l.pt")
+# PRETRAINED_CKPT_PATH = None
 
 
 def config_(
@@ -43,9 +46,20 @@ def config_(
     *,
     batch: int,
     scalar: bool = False,
+    BackboneSize: str = 'large',
 ):
+    if BackboneSize == "small":
+        SCALE_FILE_PATH = Path("./ckpt/jmp-s.pt")
+        PRETRAINED_CKPT_PATH = Path("./ckpt/jmp-s.pt")
+    elif BackboneSize == "large":
+        SCALE_FILE_PATH = Path("./ckpt/jmp-l.pt")
+        PRETRAINED_CKPT_PATH = Path("./ckpt/jmp-l.pt")
+
     # Large model
-    config.backbone = BackboneConfig.large()
+    if BackboneSize == "small":
+        config.backbone = BackboneConfig.base()
+    elif BackboneSize == "large":
+        config.backbone = BackboneConfig.large()
     config.embedding.embedding_size = config.backbone.emb_size_atom
     # config.ln = False
     # config.backbone.ln = False
@@ -118,19 +132,34 @@ def config_(
             rlp=RLPConfig(mode="min", patience=3, factor=0.8),
         )
 
-    config.parameter_specific_optimizers = make_parameter_specific_optimizer_config(
-        config,
-        config.backbone.num_blocks,
-        {
-            "embedding": 0.3,
-            "blocks_0": 0.55,
-            "blocks_1": 0.40,
-            "blocks_2": 0.30,
-            "blocks_3": 0.40,
-            "blocks_4": 0.55,
-            "blocks_5": 0.625,
-        },
-    )
+    if BackboneSize == "large":
+        config.parameter_specific_optimizers = make_parameter_specific_optimizer_config(
+            config,
+            config.backbone.num_blocks,
+            {
+                "embedding": 0.3,
+                "blocks_0": 0.55,
+                "blocks_1": 0.40,
+                "blocks_2": 0.30,
+                "blocks_3": 0.40,
+                "blocks_4": 0.55,
+                "blocks_5": 0.625,
+            },
+        )
+    elif BackboneSize == "small":
+        config.parameter_specific_optimizers = make_parameter_specific_optimizer_config(
+            config,
+            config.backbone.num_blocks,
+            {
+                "embedding": 0.3,
+                "blocks_0": 0.55,
+                "blocks_1": 0.40,
+                "blocks_2": 0.30,
+                "blocks_3": 0.40,
+                # "blocks_4": 0.55,
+                # "blocks_5": 0.625,
+            },
+        )
 
     # Passed args
     config.project = "4_11_ft_lg_jmp_testing"
@@ -357,16 +386,36 @@ def qm9_configs():
         yield config, qm9.QM9Model
 
 
+def build_custom_configs(dataset: str, mean: float, std: float, BackboneSize: str):
+    NORMALIZATION: dict[str, NC] = {"y": NC(mean=mean, std=std)}
+
+    config = qmof.QMOFConfig.draft()
+
+    config.name = dataset
+    config.graph_scalar_reduction_default = "mean"
+    config.normalization = NORMALIZATION
+    config_(config, batch=4, scalar=True, BackboneSize=BackboneSize)
+
+    config.primary_metric = PrimaryMetricConfig(name="y_mae", mode="min")
+
+    base_path = BASE_DATASET_PATH / dataset
+    config.train_dataset = DC.qmof_config(base_path, "train")
+    config.val_dataset = DC.qmof_config(base_path, "val")
+    config.test_dataset = DC.qmof_config(base_path, "test")
+
+    return config, qmof.QMOFModel
+
+
 QMOF_NORMALIZATION: dict[str, NC] = {"y": NC(mean=2.1866251527, std=1.175752521125648)}
 
 
-def qmof_configs():
+def qmof_configs(BackboneSize):
     config = qmof.QMOFConfig.draft()
 
     config.name = "qmof"
     config.graph_scalar_reduction_default = "mean"
     config.normalization = QMOF_NORMALIZATION
-    config_(config, batch=4, scalar=True)
+    config_(config, batch=4, scalar=True, BackboneSize=BackboneSize)
 
     config.primary_metric = PrimaryMetricConfig(name="y_mae", mode="min")
 
@@ -375,9 +424,35 @@ def qmof_configs():
     config.val_dataset = DC.qmof_config(base_path, "val")
     config.test_dataset = DC.qmof_config(base_path, "test")
 
+    config.trainer.auto_set_default_root_dir = False
+    config.trainer.default_root_dir = f"./custom_logs/qmof_{BackboneSize}"
+    config.id = f"qmof_{BackboneSize}"
+
     return config, qmof.QMOFModel
 
-    # yield config, qmof.QMOFModel
+
+def coremof_configs(BackboneSize):
+    return build_custom_configs(
+        dataset="coremof", mean=222.6237398232744, std=223.2227058218951, BackboneSize=BackboneSize
+    )
+
+
+def hmof_configs(BackboneSize):
+    return build_custom_configs(
+        dataset="hmof", mean=5.13691102178, std=2.632395049446477, BackboneSize=BackboneSize
+    )
+
+
+def ch4n2_configs(BackboneSize):
+    return build_custom_configs(
+        dataset="ch4n2", mean=4.0301191812789385, std=1.6448831624959857, BackboneSize=BackboneSize
+    )
+
+
+def tsd_configs(BackboneSize):
+    return build_custom_configs(
+        dataset="tsd", mean=357.57904921170666, std=87.33380367076087, BackboneSize=BackboneSize
+    )
 
 
 SPICE_DATASETS: list[spice.SPICEDataset] = [

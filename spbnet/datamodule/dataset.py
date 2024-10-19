@@ -69,7 +69,12 @@ class BaseDataset(torch.utils.data.Dataset):
                 "corr": torch.from_numpy(correction).float(),
             }
         else:
-            griddata = griddata.reshape(img_size, img_size, img_size)
+            try:
+                griddata = griddata.reshape(self.img_size, self.img_size, self.img_size)
+            except:
+                griddata = griddata.reshape(
+                    self.img_size, self.img_size, self.img_size, 20
+                )[:, :, :, 12]
 
             return {
                 "lj": torch.from_numpy(griddata).float(),

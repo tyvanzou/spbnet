@@ -4,7 +4,6 @@ from tqdm import tqdm
 import pickle
 import numpy as np
 import click
-from traitlets import default
 
 from ..utils.echo import title, start, end, param, warn
 
@@ -79,7 +78,7 @@ def filterData(root_dir: Path, modal_folder: str, id_prop: str, outlier: int):
         return item[task], True
 
     start("Start to filter data")
-    df = pd.read_csv((prop_dir / f"{prop_name}.csv").absolute())
+    df = pd.read_csv((root_dir / f"{id_prop}.csv").absolute())
     tasks = [str(column) for column in df.columns[1:]]
     param(tasks=tasks)
     cifids = df["cifid"]
@@ -108,15 +107,15 @@ def filterData(root_dir: Path, modal_folder: str, id_prop: str, outlier: int):
     train_ratio = 0.8
     val_ratio = 0.1
     size = len(items)
-    items.to_csv((prop_dir / f"{prop_name}.filter.csv").absolute(), index=False)
+    items.to_csv((root_dir / f"{id_prop}.filter.csv").absolute(), index=False)
     items[: int(size * train_ratio)].to_csv(
-        (prop_dir / f"{prop_name}.train.csv").absolute(), index=False
+        (root_dir / f"{id_prop}.train.csv").absolute(), index=False
     )
     items[int(size * train_ratio) : int(size * (train_ratio + val_ratio))].to_csv(
-        (prop_dir / f"{prop_name}.val.csv").absolute(), index=False
+        (root_dir / f"{id_prop}.val.csv").absolute(), index=False
     )
     items[int(size * (train_ratio + val_ratio)) :].to_csv(
-        (prop_dir / f"{prop_name}.test.csv").absolute(), index=False
+        (root_dir / f"{id_prop}.test.csv").absolute(), index=False
     )
     end("Split end")
     title("FILTER DATA END")
@@ -128,7 +127,7 @@ def filterData(root_dir: Path, modal_folder: str, id_prop: str, outlier: int):
 )
 @click.option("--modal-folder", "-M", type=str, default=".")
 @click.option("--id-prop", "-I", type=str, default="benchmark")
-@click.option("--outlier", "-O", type=int, default=3)
+@click.option("--outlier", "-O", type=int, default=5)
 def filterDataCli(root_dir: Path, modal_folder: str, id_prop: str, outlier: int):
     filterData(root_dir, modal_folder, id_prop, outlier)
 

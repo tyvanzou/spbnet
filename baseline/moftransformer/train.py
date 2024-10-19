@@ -14,7 +14,7 @@ def run(
     device,
     load_path,
     max_epochs=60,
-    batch_size=16,
+    batch_size=8,
 ):
 
     moftransformer.run(
@@ -31,7 +31,7 @@ def run(
 
 
 def main():
-    config = yaml.full_load("config.yaml")
+    config = yaml.full_load(open("config.yaml", 'r'))
 
     root_dataset = config["root_dataset"]
     downstreams = config["downstreams"]

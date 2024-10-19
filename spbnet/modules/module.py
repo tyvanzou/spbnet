@@ -41,7 +41,7 @@ class SpbNet(nn.Module):
             self.lj_vit3d = VisionTransformer3D(
                 img_size=config["img_size"]["lj"],
                 patch_size=config["patch_size"]["lj"],
-                in_chans=config["in_chans"],
+                in_chans=(5 if self.config["useGrad"] else 1),
                 embed_dim=config["hid_dim"],
                 depth=1,
                 num_heads=config["nhead"],
@@ -51,7 +51,7 @@ class SpbNet(nn.Module):
             self.coulomb_vit3d = VisionTransformer3D(
                 img_size=config["img_size"]["coulomb"],
                 patch_size=config["patch_size"]["coulomb"],
-                in_chans=config["in_chans"],
+                in_chans=(2 if self.config["useGrad"] else 1),
                 embed_dim=config["hid_dim"],
                 depth=1,
                 num_heads=config["nhead"],
@@ -120,6 +120,34 @@ class SpbNet(nn.Module):
         # # regression
         # self.regression_head = heads.RegressionHead(config["hid_dim"])
 
+    def calc_grad(self, grid, batch_size=None, IS=None):
+        assert len(grid.shape) == 4
+        if batch_size is not None:
+            assert grid.shape[0] == batch_size
+        else:
+            batch_size = grid.shape[0]
+        if IS is None:
+            IS = grid.shape[1]
+        assert grid.shape[1] == IS
+        assert grid.shape[2] == IS
+        assert grid.shape[3] == IS
+
+        grid_repeat = grid.repeat(1, 2, 2, 2)
+        grid_grad_all = (
+            grid_repeat[:, 1 : 1 + IS, 1 : 1 + IS, 1 : 1 + IS]
+            - grid_repeat[
+                :,
+                IS - 1 : 2 * IS - 1,
+                IS - 1 : 2 * IS - 1,
+                IS - 1 : 2 * IS - 1,
+            ]
+        ) / 2  # (f(x + delta) - f(x - delta)) / 2 * delta ~ gradient
+        grid_grad_a = (grid_repeat[:, 1:1+IS, 0:IS, 0:IS] - grid_repeat[:, IS-1:2*IS-1, 0:IS, 0:IS]) / 2
+        grid_grad_b = (grid_repeat[:, 0:IS, 1:1+IS, 0:IS] - grid_repeat[:, 0:IS, IS-1:2*IS-1, 0:IS]) / 2
+        grid_grad_c = (grid_repeat[:, 0:IS, 0:IS, 1:1+IS] - grid_repeat[:, 0:IS, 0:IS, IS-1:2*IS-1]) / 2
+
+        return torch.stack([grid_grad_b, grid_grad_b, grid_grad_c, grid_grad_all], dim=1)  # [B, 4, H, W, D]
+
     def forward(self, batch, mask_grid=False):
         cifid = batch["cifid"]
         batch_size = len(cifid)
@@ -168,10 +196,20 @@ class SpbNet(nn.Module):
             # grid useBasis
             if self.config["useBasis"]:
                 corr = self.potential_mapper(corr).squeeze(-1)  # [B, H, W, D]
-                grid = (lj + corr).unsqueeze(1)  # [B, 1, H, W, D]
+                grid = lj + corr  # [B, H, W, D]
             else:
-                grid = lj
-                grid = grid.unsqueeze(1)
+                grid = lj  # [B, H, W, D]
+            if self.config["useGrad"]:
+                grid_grad = self.calc_grad(
+                    grid, batch_size=batch_size, IS=self.config["img_size"]["lj"]
+                )
+                # grid_grad = grid_grad.unsqueeze(1)
+
+            grid = grid.unsqueeze(1)
+            if self.config["useGrad"]:
+                grid = torch.concat(
+                    [grid, grid_grad], dim=1
+                )  # [B, 5, H, W, D], 5 channel, 4 for grad / force (a, b, c, sum), 1 for energy
 
             # lj embed
             (
@@ -217,21 +255,17 @@ class SpbNet(nn.Module):
         # volume embed
         volume = torch.FloatTensor(volume).to(device)  # [B]
         volume_embed = self.volume_embeddings(volume[:, None, None])  # [B, 1, hid_dim]
-        volume_mask = torch.ones(volume.shape[0], 1).to(device=device, dtype=torch.bool)
+        volume_mask = torch.ones(volume.shape[0], 1).to(device=device)
 
         # cls_embed
         cls_token = torch.zeros(batch_size).to(device)  # [B]
         cls_embed = self.cls_embeddings(cls_token[:, None, None])  # [B, 1, hid_dim]
-        cls_mask = torch.ones(batch_size, 1).to(
-            device=device, dtype=torch.bool
-        )  # [B, 1]
+        cls_mask = torch.ones(batch_size, 1).to(device=device)  # [B, 1]
 
         # sep_embed
         sep_token = torch.zeros(batch_size).to(device)  # [B]
         sep_embed = self.sep_embeddings(sep_token[:, None, None])  # [B, 1, hid_dim]
-        sep_mask = torch.ones(batch_size, 1).to(
-            device=device, dtype=torch.bool
-        )  # [B, 1]
+        sep_mask = torch.ones(batch_size, 1).to(device=device)  # [B, 1]
 
         # add token_type_embeddings
 

@@ -9,8 +9,8 @@
 **/.pytest_cache
 **/.DS_Store
 **/__pycache__
-**/tmp
-**/tmp.py
+**/*tmp
+**/*.tmp.py
 **/bak
 
 # data
@@ -33,3 +33,28 @@ baseline/Uni-MOF
 # compressed
 **/*.tar.gz
 **/*.zip
+
+# ignore
+**/*ignore*
+
+# test
+# **/test
+!test/**/data
+# ckpt
+test/**/*.ckpt
+# demo
+test/demo/**/graphdata
+test/demo/**/griddata
+test/demo/**/griddata8
+test/demo/**/total
+test/demo/**/grid
+test/demo/**/atomgrid
+test/demo/**/vftopo.csv
+test/demo/**/*filter*
+test/demo/predict
+# vis
+test/vis/data/**
+!test/vis/data/cif
+
+# other
+config.pretrain.yaml

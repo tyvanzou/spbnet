@@ -4,6 +4,7 @@ coulomb: false
 
 useBasis: true
 useCharge: false
+useGrad: false
 
 # structure
 atom_fea_len: 64
@@ -18,7 +19,6 @@ img_size:
 patch_size:
   lj: 3
   coulomb: 2
-in_chans: 1
 max_grid_len: -1
 
 # others

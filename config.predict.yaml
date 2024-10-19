@@ -1,15 +1,16 @@
 # configable
 epochs: 60
-ckpt: ./lightning_logs/tmp/CH4-298-2.5/version_0/checkpoints/epoch=0-step=79.ckpt
+ckpt: ./test/demo/logs/CO2-298-2.5/version_0/checkpoints/epoch=7-step=40.ckpt
 
-# hmof
-root_dir: ./data/benchmark/hmof
+# test
+root_dir: ./test/demo/data/toydataset
 modal_folder: "."
-id_prop: benchmark.val
-log_dir: ./lightning_logs/tmp/predict
+id_prop: benchmark.filter.test
+log_dir: ./test/demo/predict
 device: [0]
 
 batch_size: 16
+precision: 16-mixed
 
 # MODEL
 structure: true
@@ -17,7 +18,7 @@ lj: true
 coulomb: false
 
 useBasis: true
-useCharge: true
+useCharge: false
 useTopoHelp: false
 
 # OPTIMIZER

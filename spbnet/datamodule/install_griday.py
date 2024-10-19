@@ -1,6 +1,7 @@
 # MOFTransformer version 2.0.0
 import subprocess
 from pathlib import Path
+import click
 
 from .prepare_data import GRIDAY_PATH
 from ..utils.echo import title, err, start, end
@@ -15,7 +16,12 @@ class InstallationError(Exception):
             return f"Installation Error : {self.error_message}"
         return "Installation Error"
 
+@click.group()
+def cli():
+    pass
 
+
+@cli.command()
 def install_make():
     title("INSTALL MAKE")
     start("Downloading gcc=9.5.0")
@@ -39,6 +45,7 @@ def install_make():
     title("INSTALL MAKE END")
 
 
+@cli.command()
 def make_griday():
     title("MAKEING GRIDAY")
     dir_griday = Path(GRIDAY_PATH).parent.parent
@@ -74,7 +81,7 @@ def make_griday():
         )
     title("MAKE GRIDAY END")
 
-
+@cli.command()
 def uninstall_griday():
     dir_griday = Path(GRIDAY_PATH).parent.parent
     if not dir_griday.exists():
@@ -92,3 +99,7 @@ def uninstall_griday():
     else:
         raise InstallationError()
     title("UNINSTALL GRIDAY END")
+
+
+if __name__ == '__main__':
+    cli()

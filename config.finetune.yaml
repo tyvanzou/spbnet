@@ -1,88 +1,17 @@
 # configable
-epochs: 60
-# ckpt: ./ckpt/moc.ckpt
-# ckpt: ./ckpt/spbnet.porous.320k.ckpt
-# ckpt: ./ckpt/spbnet.160k.nobasis.agconly.ckpt
-# ckpt: ./ckpt/spbnet.160k.ckpt
-# ckpt: ./ckpt/spbnet.1m.ckpt
-ckpt: scratch
+epochs: 10
+ckpt: ./ckpt/spbnet.160k.ckpt
 
-# # hmof
-# root_dir: ./data/18wmof
-# id_prop: benchmark
-# # task: topo
-# # task_type: classification
-# task: voidfraction
-# task_type: regression
-# log_dir: ./lightning_logs/mechan/vfp/enhance_global/potential/scratch
-# device: [6]
-
-# coremof
-root_dir: ./data/benchmark/coremof
-id_prop: benchmark
-task: N2-77-100000
+# test
+root_dir: ./test/demo/data/toydataset
+id_prop: benchmark.filter
+task: CO2-298-2.5
 task_type: regression
-log_dir: ./lightning_logs/mechan/enhance_structure/all/scratch
-device: [2]
-
-# # bandgap
-# root_dir: ./data/benchmark/bandgap
-# id_prop: benchmark
-# task: bandgap
-# task_type: regression
-# log_dir: ./lightning_logs/bandgap/scratch
-# device: [5]
-
-# # mechanical
-# root_dir: ./data/benchmark/mechanical
-# id_prop: benchmark
-# task: KVRH
-# task_type: regression
-# log_dir: ./lightning_logs/mechan/useStructFeat/scratch_ponly_nobasis
-# device: [2]
-
-# # tsd
-# root_dir: ./data/benchmark/tsd
-# id_prop: benchmark
-# task: tsd
-# task_type: regression
-# log_dir: ./lightning_logs/mechan/useStructFeat_tsd/agc_ponly_nobasis
-# device: [6]
-
-# # hmof
-# root_dir: ./data/benchmark/hmof
-# id_prop: benchmark
-# task: CH4-298-2.5
-# task_type: regression
-# log_dir: ./lightning_logs/tmp
-# device: [0]
-
-# # ppn
-# root_dir: ./data/benchmark/ppn
-# id_prop: benchmark
-# task: 65bar
-# task_type: regression
-# log_dir: ./lightning_logs/porous/ppn
-# device: [0]
-
-# # cof
-# root_dir: ./data/benchmark/cof
-# id_prop: benchmark
-# task: highbar
-# task_type: regression
-# log_dir: ./lightning_logs/porous/cof
-# device: [4]
-
-# # zeolite
-# root_dir: ./data/benchmark/zeolite
-# id_prop: benchmark
-# task: unitless_KH
-# task_type: regression
-# log_dir: ./lightning_logs/porous/zeolite
-# device: [0]
+log_dir: ./test/demo/logs
+device: [0]
 
 # stable
-batch_size: 16
+batch_size: 8
 accelerator: gpu
 strategy: ddp_find_unused_parameters_true
 accumulate_grad_batches: 4
@@ -96,4 +25,5 @@ coulomb: false
 
 useBasis: true
 useCharge: false
+useGrad: false
 useTopoHelp: false

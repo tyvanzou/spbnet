@@ -1,0 +1,71 @@
+batch_size: 128
+epochs: 60
+eval_every_n_epochs: 1
+# fine_tune_from: ./training_results/pretraining
+fine_tune_from: ./ckpt
+# fine_tune_from: scratch
+log_every_n_steps: 50
+gpu: cuda:0
+random_seed: 1
+task: regression
+
+optim:
+  optimizer: Adam
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 1e-6
+
+model: 
+  atom_fea_len: 64
+  h_fea_len: 512
+  n_conv: 3
+  n_h: 1
+
+# data_name: QMOF
+# data_name: hMOF_CO2_298_2.5
+# data_name: hMOF_CH4_298_2.5
+# data_name: hMOF_CO2_0.5
+# data_name: hMOF_Kr_273_10
+# data_name: hMOF_Xe_273_10
+# data_name: hMOF_N2_298_0.9
+# data_name: hMOF_H2_77_2
+# data_name: CoREMOF_Ar_87_1
+# data_name: CoREMOF_N2_77_100000
+# data_name: COF_lowbar
+# data_name: COF_highbar
+# data_name: COF_logkh
+# data_name: COF_qst
+# data_name: PPN_1bar
+# data_name: PPN_65bar
+# data_name: Zeolite_heat
+data_name: Zeolite_kh
+# data_name: bandgap
+# data_name: ch4n2_ch4n2ratio_1bar
+# data_name: tsd
+
+dataset:
+  # root_dir: ./hMOF_cif
+  # label_dir: ./benchmark_datasets/hMOF/graph/large/hMOF_CO2_0.5_large_graph.csv
+  # root_dir: ./QMOF_cg
+  # label_dir: ./benchmark_datasets/QMOF/graph/large/QMOF_large_graph.csv
+  # root_dir: ../../data/benchmark/hmof/moformer
+  # root_dir: ../../data/benchmark/coremof/moformer
+  # root_dir: ../../data/benchmark/ch4n2/moformer
+  # root_dir: ../../data/benchmark/tsd/moformer
+  # root_dir: ../../data/benchmark/cof/moformer
+  # root_dir: ../../data/benchmark/ppn/moformer
+  root_dir: ../../data/benchmark/zeolite/moformer
+  # root_dir: ../../data/benchmark/bandgap/moformer
+
+  # max_num_nbr: 12
+  # radius: 8
+  # dmin: 0
+  # step: 0.2
+
+
+dataloader:
+  val_ratio: 0.15
+  test_ratio: 0.15
+  num_workers: 0
+
+

@@ -7,8 +7,7 @@ import pytorch_lightning as pl
 import pandas as pd
 import yaml
 import torch
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks import LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
 from torch.utils.data import DataLoader
 from pathlib import Path
 from multiprocessing import Process
@@ -73,8 +72,8 @@ class SpbNetTrainer(pl.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
         self.cross_entropy = nn.CrossEntropyLoss()
-        self.r2score = R2Score()
-        self.pearsonr = PearsonCorrCoef()
+        self.r2score = R2Score().to(self.device)
+        self.pearsonr = PearsonCorrCoef().to(self.device)
 
         # mae
         self.min_mae = 1e5
@@ -128,7 +127,7 @@ class SpbNetTrainer(pl.LightningModule):
         elif self.task_type == "classification":
             value = batch["target"]  # List[str]
             cls_ids = [self.cls_id_map[t] for t in value]
-            cls_ids = torch.tensor(cls_ids, dtype=torch.long).to(device)  # [B, ]
+            cls_ids = torch.tensor(cls_ids, dtype=torch.long).to(self.device)  # [B, ]
             loss = self.cross_entropy(pred, cls_ids)
             acc = self.acc(cls_ids, pred)
             self.log("train_cross_entropy", loss, batch_size=batch_size, sync_dist=True)
@@ -172,7 +171,7 @@ class SpbNetTrainer(pl.LightningModule):
         elif self.task_type == "classification":
             value = batch["target"]  # List[str]
             cls_ids = [self.cls_id_map[t] for t in value]
-            cls_ids = torch.tensor(cls_ids, dtype=torch.long).to(device)  # [B, ]
+            cls_ids = torch.tensor(cls_ids, dtype=torch.long).to(self.device)  # [B, ]
             loss = self.cross_entropy(pred, cls_ids)
             acc = self.acc(cls_ids, pred)
             self.log("val_cross_entropy", loss, batch_size=batch_size, sync_dist=True)
@@ -190,6 +189,7 @@ class SpbNetTrainer(pl.LightningModule):
             cls_feat
         )  # [batch_size, 1] for regression and [B, cls_num] for classification
         batch_size = pred.shape[0]
+        device = pred.device
 
         if self.task_type == "regression":
             # [batch_size, max_token_len]
@@ -202,17 +202,6 @@ class SpbNetTrainer(pl.LightningModule):
             # raw
             target = batch["target"]
             reg = reg * self.std + self.mean
-            mse_raw = torch.mean((target - reg) ** 2)
-            mae_raw = torch.mean(torch.abs(target - reg))
-            r2 = self.r2score(target, reg)
-            self.log(
-                "test_mse",
-                mse_raw,
-                batch_size=batch_size,
-                sync_dist=True,
-            )
-            self.log("test_mae", mae_raw, batch_size=batch_size, sync_dist=True)
-            self.log("test_r2", r2, batch_size=batch_size, sync_dist=True)
 
             cifid = batch["cifid"]
             assert len(cifid) == batch["target"].shape[0]
@@ -236,8 +225,8 @@ class SpbNetTrainer(pl.LightningModule):
         self.test_df = pd.DataFrame(
             self.test_items, columns=["cifid", "target", "predict"]
         )
-        pred = torch.tensor(self.test_df["predict"])
-        target = torch.tensor(self.test_df["target"])
+        pred = torch.tensor(self.test_df["predict"]).to(self.device)
+        target = torch.tensor(self.test_df["target"]).to(self.device)
 
         if self.task_type == "regression":
             mae = torch.mean(torch.abs((pred - target)))
@@ -329,7 +318,7 @@ def finetune(config_path: Path):
         val_df.to_csv(id_prop_dir / f"{id_prop}.val.csv", index=False)
         test_df.to_csv(id_prop_dir / f"{id_prop}.test.csv", index=False)
         print(
-            f'id_prop file has already been splitted, split {str(id_prop_dir / f"{id_prop}.{split}.csv")} into 5:1:1, aka {len(train_df)}:{len(val_df)}:{len(test_df)}'
+            f'id_prop file has already been splitted, split {str(id_prop_dir / f"{id_prop}.csv")} into 5:1:1, aka {len(train_df)}:{len(val_df)}:{len(test_df)}'
         )
         dfs = {"train": train_df, "val": val_df, "test": test_df}
     datasets = {
@@ -353,6 +342,7 @@ def finetune(config_path: Path):
             shuffle=split == "train",
             num_workers=8,
             collate_fn=datasets[split].collate_fn,
+            drop_last=True
         )
         for split in splits
     }
@@ -385,6 +375,7 @@ def finetune(config_path: Path):
         mode="min" if task_type == "regression" else "max",
         save_last=True,
     )
+    early_stop_callback = EarlyStopping(monitor="val_mae", min_delta=1e-6, patience=50, verbose=False, mode="min")
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
     logger = TensorBoardLogger(save_dir=(log_dir / task).absolute(), name="")
     trainer = pl.Trainer(
@@ -393,7 +384,7 @@ def finetune(config_path: Path):
         devices=device,
         accelerator=config["accelerator"],
         strategy=config["strategy"],
-        callbacks=[checkpoint_callback, lr_monitor],
+        callbacks=[checkpoint_callback, lr_monitor, early_stop_callback],
         accumulate_grad_batches=config["accumulate_grad_batches"],
         precision=config["precision"],
         log_every_n_steps=config["log_every_n_steps"],

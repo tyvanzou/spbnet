@@ -1,4 +1,4 @@
-ckpt: ./lightning_logs/mechan/useStructFeat/pretrain/all/N2-77-100000/version_0/checkpoints/last.ckpt # e.g. ./lightning_logs/version_0/checkpoints/last.ckpt
+ckpt: ~ # e.g. ./lightning_logs/version_0/checkpoints/last.ckpt
 
 feat:
   save:
