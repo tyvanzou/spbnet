@@ -213,7 +213,7 @@ hMOF-5059119,6.9140625
 ...
 ```
 
-## Visulization
+## Visualization
 
 SpbNet provide code for visualization the attention score. Attention is the mechanism designed by the famous Transformer model and used by SpbNet. 
 
